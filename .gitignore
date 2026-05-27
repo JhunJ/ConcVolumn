@@ -4,6 +4,8 @@ __pycache__/
 *.db-shm
 *.db-wal
 uploads/
+Sample/
+*.3dm
 .env
 .venv/
 venv/
