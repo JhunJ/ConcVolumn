@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ConCast - 콘크리트 타설 물량 관리</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+:root {
+  --sidebar-w: 340px;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --border: #475569;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --radius: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height:100vh; overflow:hidden; display:flex; }
+
+/* Sidebar */
+#sidebar { width: var(--sidebar-w); background: var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
+#sidebar h1 { font-size:14px; padding:16px; border-bottom:1px solid var(--border); background: linear-gradient(135deg, var(--primary), #8b5cf6); color:#fff; }
+.section { padding:12px 16px; border-bottom:1px solid var(--border); }
+.section-title { font-size:11px; text-transform:uppercase; color:var(--text2); letter-spacing:0.5px; margin-bottom:8px; font-weight:600; }
+.section-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.section-header .section-title { margin-bottom:0; }
+.section-header .btn { white-space:nowrap; flex-shrink:0; }
+
+/* Form elements */
+input[type=text], input[type=date], input[type=number], select, textarea {
+  width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius);
+  background: var(--surface2); color:var(--text); font-size:12px; margin-bottom:6px;
+}
+textarea { resize:vertical; min-height:40px; }
+.btn { padding:8px 14px; border:none; border-radius:var(--radius); cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-hover); }
+.btn-success { background:var(--success); color:#fff; }
+.btn-danger { background:var(--danger); color:#fff; }
+.btn-sm { padding:5px 10px; font-size:11px; }
+.btn-block { width:100%; display:block; }
+
+/* Floor chips */
+.floor-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.floor-chip {
+  padding:5px 12px; border-radius:16px; font-size:11px; font-weight:600;
+  cursor:pointer; border:2px solid var(--border); background:transparent; color:var(--text2);
+  transition:all .2s;
+}
+.floor-chip.active { border-color:var(--primary); background:var(--primary); color:#fff; }
+.floor-chip.uploaded { border-color:var(--success); color:var(--success); }
+.floor-chip.uploaded.active { background:var(--success); color:#fff; }
+
+/* Zone list */
+.zone-item { padding:8px 10px; background:var(--surface2); border-radius:var(--radius); margin-bottom:4px; display:flex; align-items:center; gap:8px; font-size:12px; border:1px solid transparent; }
+.zone-item:hover { background:var(--border); }
+.zone-item .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.zone-item .info { flex:1; cursor:pointer; }
+.zone-item .vol { font-size:11px; color:var(--text2); }
+.zbtn { width:22px; height:22px; border:none; border-radius:4px; background:var(--surface); color:var(--text2); font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.zbtn:hover { background:var(--primary); color:#fff; }
+.zbtn.z-del:hover { background:var(--danger); }
+
+/* Summary */
+.summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.summary-card { padding:10px; background:var(--surface2); border-radius:var(--radius); text-align:center; }
+.summary-card .num { font-size:18px; font-weight:bold; }
+.summary-card .label { font-size:10px; color:var(--text2); margin-top:2px; }
+
+/* Viewport area */
+#viewport-area { flex:1; display:flex; flex-direction:column; }
+#viewport-split { flex:1; display:flex; }
+#view2d-container, #view3d-container { flex:1; position:relative; overflow:hidden; border-right:1px solid var(--border); }
+#view3d-container { border-right:none; }
+.view-label { position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); padding:4px 10px; border-radius:4px; font-size:10px; font-weight:600; z-index:10; pointer-events:none; }
+#canvas2d, #canvas3d { width:100%; height:100%; display:block; }
+
+/* Status bar */
+#statusbar { height:28px; background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 16px; font-size:11px; color:var(--text2); gap:20px; }
+.status-item { display:flex; align-items:center; gap:4px; }
+
+/* Drawing tools */
+#draw-tools { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10; }
+#draw-tools .tool-btn {
+  padding:6px 12px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); color:var(--text); font-size:11px; cursor:pointer;
+}
+#draw-tools .tool-btn.active { background:var(--primary); border-color:var(--primary); }
+
+/* Tabs */
+.tab-btn { flex:1; padding:8px; background:transparent; border:none; border-bottom:2px solid transparent; color:var(--text2); font-size:11px; font-weight:600; cursor:pointer; transition:all .2s; }
+.tab-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
+.tab-btn:hover { color:var(--text); }
+
+/* Pour status panel (inline under zone) */
+.pour-status-panel { margin-top:8px; padding:8px; background:var(--surface); border-radius:6px; border:1px solid var(--border); }
+.pour-compare { display:flex; gap:4px; margin-bottom:8px; }
+.pour-col { flex:1; text-align:center; padding:4px; background:var(--surface2); border-radius:4px; }
+.pour-val { font-size:14px; font-weight:bold; color:var(--text); }
+.pour-label { font-size:9px; color:var(--text2); margin-top:2px; }
+.pour-input-row { display:flex; gap:4px; margin-bottom:6px; }
+.pour-input-row input { flex:1; padding:6px; font-size:11px; }
+.pour-input-row select { width:60px; padding:6px; font-size:10px; }
+.actual-dual-row { align-items:flex-end; }
+.actual-field { flex:1; min-width:0; }
+.actual-field label { display:block; font-size:9px; color:var(--text2); margin-bottom:2px; }
+.actual-field input { width:100%; box-sizing:border-box; }
+.actual-pour-row { display:grid; grid-template-columns:6px minmax(0,1fr) auto; align-items:center; gap:3px 6px; padding:5px 6px; font-size:11px; border-radius:4px; background:var(--surface2); margin-bottom:3px; }
+.ap-dot { width:6px; height:6px; border-radius:50%; background:var(--success); flex-shrink:0; }
+.ap-name { font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ap-actions { display:flex; gap:3px; grid-column:3; grid-row:1; }
+.ap-info { grid-column:2 / 4; font-size:10px; color:var(--text2); line-height:1.25; word-break:keep-all; }
+
+/* Toast */
+.toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:var(--radius); color:#fff; font-size:12px; z-index:9999; animation:fadeIn .3s; }
+.toast-success { background:var(--success); }
+.toast-error { background:var(--danger); }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+
+/* Calc progress overlay */
+.calc-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:2000; display:flex; align-items:center; justify-content:center; }
+.calc-progress { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px 40px; min-width:360px; text-align:center; }
+.calc-progress h3 { margin-bottom:12px; font-size:16px; }
+.calc-progress .engine-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:10px; font-weight:600; background:var(--primary); color:#fff; margin-bottom:12px; }
+.calc-progress .progress-bar { width:100%; height:6px; background:var(--surface2); border-radius:3px; margin:12px 0; overflow:hidden; }
+.calc-progress .progress-fill { height:100%; background:linear-gradient(90deg, var(--primary), #8b5cf6); border-radius:3px; transition:width .3s; }
+.calc-progress .status-msg { font-size:12px; color:var(--text2); margin-top:8px; }
+.calc-progress .elapsed { font-size:11px; color:var(--text2); margin-top:4px; }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; min-width:360px; max-width:90vw; }
+.modal h3 { margin-bottom:16px; font-size:16px; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+
+/* Mobile sidebar toggle */
+#sidebar-toggle { display:none; position:fixed; bottom:16px; left:16px; z-index:500; width:48px; height:48px; border-radius:50%; background:var(--primary); color:#fff; border:none; font-size:20px; box-shadow:0 4px 12px rgba(0,0,0,0.4); cursor:pointer; }
+
+/* Mobile summary bar (항상 상단 표시) */
+#mobile-summary { display:none; width:100%; background:var(--surface); border-bottom:1px solid var(--border); padding:6px 12px; flex-direction:column; gap:4px; }
+.msm-project { display:flex; align-items:center; justify-content:center; gap:8px; }
+#msm-project-name { font-size:12px; font-weight:700; color:var(--text); }
+.msm-floor-badge { padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; background:var(--primary); color:#fff; }
+.msm-stats { display:flex; justify-content:space-around; }
+.msm-item { text-align:center; }
+.msm-num { display:block; font-size:15px; font-weight:bold; color:var(--primary); }
+.msm-label { font-size:9px; color:var(--text2); text-transform:uppercase; }
+#mobile-zone-select { display:none; background:var(--surface); border-bottom:1px solid var(--border); padding:6px 8px; gap:6px; overflow-x:auto; white-space:nowrap; }
+.mobile-zone-chip { flex:0 0 auto; border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:14px; padding:6px 10px; font-size:11px; cursor:pointer; }
+.mobile-zone-chip.active { border-color:var(--primary); background:var(--primary); color:#fff; }
+.mobile-zone-chip .mzc-vol { margin-left:4px; color:var(--text2); font-size:9px; }
+.mobile-zone-chip.active .mzc-vol { color:rgba(255,255,255,0.8); }
+#mobile-zone-actions { display:none; background:var(--surface); border-bottom:1px solid var(--border); padding:6px 8px; gap:6px; }
+#mobile-recalc-zone { flex:1; }
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  body { flex-direction: column; overflow: auto; height: auto; min-height:100vh; }
+  #sidebar { width:100%; max-height:none; border-right:none; border-bottom:2px solid var(--border); display:none; }
+  #sidebar.open { display:flex; }
+  #sidebar h1 { font-size:13px; padding:12px; }
+  .section { padding:10px 12px; }
+  #sidebar-toggle { display:flex; align-items:center; justify-content:center; }
+  #mobile-summary { display:flex; }
+  #mobile-zone-select { display:flex; }
+  #mobile-zone-actions { display:flex; }
+
+  #viewport-area { flex:none; width:100%; height:auto; min-height:60vh; display:flex; flex-direction:column; }
+  #viewport-split { flex-direction:column; min-height:70vh; }
+  #view2d-container, #view3d-container { flex:none; height:40vh; min-height:280px; border-right:none; border-bottom:1px solid var(--border); }
+  #view3d-container { border-bottom:none; }
+
+  #statusbar { height:auto; padding:6px 10px; flex-wrap:wrap; gap:8px; font-size:10px; }
+  #draw-tools { bottom:8px; }
+  #draw-tools .tool-btn { padding:8px 14px; font-size:12px; }
+
+  .calc-progress { min-width:auto; width:85vw; padding:20px 24px; }
+  .modal { min-width:auto; width:90vw; padding:16px; }
+
+  .summary-grid { grid-template-columns:1fr 1fr; gap:6px; }
+  .summary-card .num { font-size:15px; }
+
+  .zone-item { padding:10px; font-size:12px; }
+  .zbtn { width:28px; height:28px; font-size:12px; }
+
+  .floor-chip { padding:7px 14px; font-size:12px; }
+  .btn { padding:10px 16px; font-size:13px; }
+  .btn-sm { padding:7px 12px; font-size:12px; }
+}
+
+@media (max-width: 480px) {
+  #view2d-container, #view3d-container { height:35vh; min-height:240px; }
+  .section-title { font-size:10px; }
+  .summary-grid { grid-template-columns:1fr 1fr; }
+  .summary-card { padding:8px; }
+  .summary-card .num { font-size:14px; }
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>ConCast - 타설 물량 관리</h1>
+
+  <div class="section">
+    <div class="section-title">프로젝트</div>
+    <div style="display:flex;gap:4px;align-items:center">
+      <select id="project-select" style="flex:1;margin-bottom:0"></select>
+      <button class="btn btn-sm btn-primary" id="btn-new-project" style="height:32px;margin-bottom:0">+</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">층 관리</div>
+    <div class="floor-chips" id="floor-chips"></div>
+    <div style="font-size:9px;color:var(--text2);margin-bottom:4px">업로드된 층만 선택 가능 | 더블클릭: 이름변경 | 우클릭: 삭제</div>
+    <button class="btn btn-sm" id="btn-add-floor" style="margin-bottom:6px;background:var(--surface2);color:var(--text2);border:1px dashed var(--border);width:100%">선택 층 이름 수정</button>
+    <input type="file" id="floor-file" accept=".3dm" style="display:none">
+    <button class="btn btn-primary btn-block btn-sm" id="btn-upload-floor">.3dm 업로드 / 층 추가</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">요약</div>
+    <div class="summary-grid" id="summary-grid">
+      <div class="summary-card"><div class="num" id="sum-planned">0</div><div class="label">예정 구역</div></div>
+      <div class="summary-card"><div class="num" id="sum-completed">0</div><div class="label">완료 구역</div></div>
+      <div class="summary-card"><div class="num" id="sum-calc-vol">0</div><div class="label">산출 체적(m³)</div></div>
+      <div class="summary-card"><div class="num" id="sum-trucks">0</div><div class="label">레미콘 대수(6m³)</div></div>
+    </div>
+  </div>
+
+  <div class="section" style="flex:1;overflow-y:auto">
+    <div class="section-header">
+      <div class="section-title">구역 목록</div>
+      <button class="btn btn-sm btn-primary" id="btn-new-zone">+ 새 구역</button>
+    </div>
+    <div id="zone-list"></div>
+  </div>
+</div>
+
+<!-- 모바일 상단 요약 (항상 표시) -->
+<div id="mobile-summary">
+  <div class="msm-project">
+    <span id="msm-project-name">-</span>
+    <span class="msm-floor-badge" id="msm-floor">-</span>
+  </div>
+  <div class="msm-stats">
+    <div class="msm-item"><span class="msm-num" id="msm-planned">0</span><span class="msm-label">예정</span></div>
+    <div class="msm-item"><span class="msm-num" id="msm-completed">0</span><span class="msm-label">완료</span></div>
+    <div class="msm-item"><span class="msm-num" id="msm-vol">0</span><span class="msm-label">m³</span></div>
+    <div class="msm-item"><span class="msm-num" id="msm-trucks">0</span><span class="msm-label">대</span></div>
+  </div>
+</div>
+<div id="mobile-zone-actions">
+  <button class="btn btn-sm btn-primary" id="mobile-recalc-zone">선택 구역 체적 재계산</button>
+</div>
+<div id="mobile-zone-select"></div>
+
+<button id="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open'); this.textContent = document.getElementById('sidebar').classList.contains('open') ? '✕' : '☰'">☰</button>
+
+<div id="viewport-area">
+  <div id="viewport-split">
+    <div id="view2d-container">
+      <div class="view-label">2D 평면뷰 (폴리라인 그리기)</div>
+      <canvas id="canvas2d"></canvas>
+      <div id="draw-tools">
+        <button class="tool-btn active" data-tool="select">선택</button>
+        <button class="tool-btn" data-tool="pan">이동</button>
+      </div>
+    </div>
+    <div id="view3d-container">
+      <div class="view-label">3D 뷰어</div>
+      <canvas id="canvas3d"></canvas>
+    </div>
+  </div>
+  <div id="statusbar">
+    <span class="status-item" id="status-engine" style="color:var(--success)">엔진: 확인 중...</span>
+    <span class="status-item" id="status-snap">스냅: 1000mm</span>
+    <span class="status-item" id="status-cursor">X: 0, Y: 0</span>
+    <span class="status-item" id="status-mode">모드: 선택</span>
+    <span class="status-item" id="status-zoom">줌: 100%</span>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+const STATE = {
+  projectName: '안양 지하층',
+  floors: [],
+  uploadedFloors: {},
+  activeFloor: '',
+  zones: [],
+  selectedZone: null,
+  snapSize: 1000,
+  tool: 'select',
+  drawingPoints: [],
+  isDrawing: false,
+  draggingVertex: null,
+  editingActual: false,
+  editTarget: { type: 'zone', id: null },
+};
+
+function closeSidebarOnMobile() {
+  if (window.innerWidth <= 768) {
+    const sb = document.getElementById('sidebar');
+    const tg = document.getElementById('sidebar-toggle');
+    if (sb && sb.classList.contains('open')) {
+      sb.classList.remove('open');
+      if (tg) tg.textContent = '☰';
+    }
+  }
+}
+
+// ===================== FLOOR CHIPS =====================
+const floorChipsEl = document.getElementById('floor-chips');
+let pendingUploadFloorLabel = null;
+
+function floorSortValue(label) {
+  if (label.startsWith('B')) return -parseInt(label.slice(1), 10);
+  if (label === 'RF') return 999;
+  const n = parseInt(label, 10);
+  return Number.isNaN(n) ? 500 : n;
+}
+
+function sortFloors() {
+  STATE.floors.sort((a, b) => floorSortValue(a) - floorSortValue(b) || a.localeCompare(b));
+}
+
+function normalizeFloorLabel(label) {
+  return label.trim().toUpperCase();
+}
+
+function setActiveTool(tool) {
+  STATE.tool = tool;
+  document.querySelectorAll('#draw-tools .tool-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tool === tool);
+  });
+  document.getElementById('status-mode').textContent = `모드: ${{'select':'선택','draw':'그리기','pan':'이동'}[tool]}`;
+  updateNewZoneButton();
+}
+
+function updateNewZoneButton() {
+  const btn = document.getElementById('btn-new-zone');
+  if (!btn) return;
+  const isNewZoneDrawing = STATE.tool === 'draw' && STATE.isDrawing && STATE.editTarget.type === 'zone' && !STATE.editTarget.id;
+  if (!isNewZoneDrawing) {
+    btn.textContent = '+ 새 구역';
+    btn.title = '새 구역 폴리라인 그리기 시작';
+    return;
+  }
+  if (STATE.drawingPoints.length >= 3) {
+    btn.textContent = '✓ 구역 저장';
+    btn.title = '현재 폴리라인을 새 구역으로 저장';
+  } else {
+    btn.textContent = `그리는 중 (${STATE.drawingPoints.length}/3)`;
+    btn.title = '최소 3점을 찍은 뒤 다시 누르면 구역 저장';
+  }
+}
+
+function updateFloorActionButtons() {
+  const editBtn = document.getElementById('btn-add-floor');
+  if (!editBtn) return;
+  editBtn.disabled = !STATE.activeFloor;
+  editBtn.style.opacity = STATE.activeFloor ? '1' : '0.5';
+}
+
+function renderFloorChips() {
+  floorChipsEl.innerHTML = '';
+  if (STATE.floors.length === 0) {
+    floorChipsEl.innerHTML = '<div style="font-size:10px;color:var(--text2);padding:4px 0">업로드된 층이 없습니다</div>';
+    updateFloorActionButtons();
+    return;
+  }
+  STATE.floors.forEach(f => {
+    const chip = document.createElement('div');
+    chip.className = 'floor-chip' + (STATE.uploadedFloors[f] ? ' uploaded' : '') + (f === STATE.activeFloor ? ' active' : '');
+    chip.textContent = f;
+    chip.onclick = () => { STATE.activeFloor = f; renderFloorChips(); loadFloorData(); };
+    chip.ondblclick = (ev) => {
+      ev.stopPropagation();
+      promptRenameFloor(f);
+    };
+    chip.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      if (confirm(`"${f}" 층을 삭제하시겠습니까?`)) {
+        deleteFloor(f);
+      }
+    };
+    floorChipsEl.appendChild(chip);
+  });
+  updateFloorActionButtons();
+}
+
+function promptRenameFloor(label) {
+  if (!label) { showToast('수정할 층을 먼저 선택하세요', 'error'); return; }
+  const newName = prompt(`층 이름 변경 (현재: ${label})`, label);
+  if (!newName || !newName.trim()) return;
+  const newLabel = normalizeFloorLabel(newName);
+  if (newLabel === label) return;
+  if (STATE.floors.includes(newLabel)) { showToast('이미 존재하는 층 이름입니다', 'error'); return; }
+  renameFloor(label, newLabel);
+}
+
+async function renameFloor(oldLabel, newLabel) {
+  // 서버에 층 이름 변경 요청
+  try {
+    await fetch(`/floors/rename`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ project_name: STATE.projectName, old_label: oldLabel, new_label: newLabel })
+    });
+  } catch(e) {}
+  const idx = STATE.floors.indexOf(oldLabel);
+  if (idx >= 0) STATE.floors[idx] = newLabel;
+  if (STATE.uploadedFloors[oldLabel]) {
+    STATE.uploadedFloors[newLabel] = STATE.uploadedFloors[oldLabel];
+    delete STATE.uploadedFloors[oldLabel];
+  }
+  if (STATE.activeFloor === oldLabel) STATE.activeFloor = newLabel;
+  sortFloors();
+  renderFloorChips();
+  loadFloorData();
+  showToast(`층 이름 변경: ${oldLabel} → ${newLabel}`, 'success');
+}
+
+async function deleteFloor(label) {
+  try {
+    await fetch(`/floors/delete`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ project_name: STATE.projectName, floor_label: label })
+    });
+  } catch(e) {}
+  STATE.floors = STATE.floors.filter(f => f !== label);
+  delete STATE.uploadedFloors[label];
+  if (STATE.activeFloor === label) STATE.activeFloor = STATE.floors[0] || '';
+  STATE.zones = [];
+  STATE.selectedZone = null;
+  dirtyZoneOutlines.clear();
+  STATE.editingActual = false;
+  STATE.editTarget = { type: 'zone', id: null };
+  actualPours = [];
+  for (const k in actualPoursCache) delete actualPoursCache[k];
+  STATE.drawingPoints = [];
+  renderFloorChips();
+  loadFloorData();
+  showToast(`"${label}" 층 삭제됨`, 'success');
+}
+
+// ===================== UPLOAD =====================
+document.getElementById('btn-upload-floor').onclick = () => {
+  const defaultLabel = STATE.activeFloor || 'B1';
+  const name = prompt('업로드할 모델의 층 이름을 입력하세요 (예: B2, B1, 1F, RF)', defaultLabel);
+  if (!name || !name.trim()) return;
+  pendingUploadFloorLabel = normalizeFloorLabel(name);
+  document.getElementById('floor-file').click();
+};
+
+document.getElementById('btn-add-floor').onclick = () => {
+  promptRenameFloor(STATE.activeFloor);
+};
+document.getElementById('floor-file').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const uploadFloorLabel = pendingUploadFloorLabel || STATE.activeFloor;
+  pendingUploadFloorLabel = null;
+  if (!uploadFloorLabel) { showToast('층 이름을 입력하세요', 'error'); e.target.value = ''; return; }
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('project_name', STATE.projectName);
+  fd.append('floor_label', uploadFloorLabel);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'calc-overlay';
+  overlay.innerHTML = `<div class="calc-progress">
+    <h3>모델 업로드 중</h3>
+    <div class="engine-badge">${uploadFloorLabel} - ${file.name}</div>
+    <div class="progress-bar"><div class="progress-fill" id="upload-pf" style="width:0%"></div></div>
+    <div class="status-msg" id="upload-msg">업로드 시작...</div>
+    <div class="elapsed" id="upload-size">${(file.size/1024/1024).toFixed(1)} MB</div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/floors/upload');
+  xhr.upload.onprogress = (ev) => {
+    if (ev.lengthComputable) {
+      const pct = Math.round(ev.loaded / ev.total * 100);
+      document.getElementById('upload-pf').style.width = pct + '%';
+      document.getElementById('upload-msg').textContent = pct < 100 ? `업로드 중... ${pct}%` : '서버 처리 중...';
+    }
+  };
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      const data = JSON.parse(xhr.responseText);
+      document.getElementById('upload-pf').style.width = '100%';
+      document.getElementById('upload-msg').textContent = '완료!';
+      STATE.uploadedFloors[uploadFloorLabel] = data;
+      if (!STATE.floors.includes(uploadFloorLabel)) STATE.floors.push(uploadFloorLabel);
+      sortFloors();
+      STATE.activeFloor = uploadFloorLabel;
+      STATE.snapSize = data.snap_size || 1000;
+      setTimeout(() => { overlay.remove(); renderFloorChips(); loadFloorData(); showToast(`${uploadFloorLabel} 업로드 완료`, 'success'); }, 500);
+    } else {
+      overlay.remove();
+      showToast('업로드 실패', 'error');
+    }
+  };
+  xhr.onerror = () => { overlay.remove(); showToast('업로드 오류', 'error'); };
+  xhr.send(fd);
+  e.target.value = '';
+};
+
+// ===================== LOAD FLOOR DATA =====================
+async function loadFloorData() {
+  const pn = STATE.projectName;
+  const fl = STATE.activeFloor;
+  if (!fl || !STATE.uploadedFloors[fl]) {
+    previewData = null;
+    meshCache = null;
+    STATE.zones = [];
+    STATE.selectedZone = null;
+    dirtyZoneOutlines.clear();
+    STATE.editingActual = false;
+    STATE.editTarget = { type: 'zone', id: null };
+    actualPours = [];
+    for (const k in actualPoursCache) delete actualPoursCache[k];
+    STATE.drawingPoints = [];
+    renderZoneList();
+    draw2D();
+    if (modelGroup) while (modelGroup.children.length) modelGroup.remove(modelGroup.children[0]);
+    if (intersectGroup) while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
+    loadSummary();
+    return;
+  }
+  try {
+    const res = await fetch(`/floors/${encodeURIComponent(pn)}/${fl}/preview`);
+    if (res.ok) {
+      const data = await res.json();
+      STATE.snapSize = data.snap_size || STATE.snapSize;
+      render2DPreview(data);
+    }
+  } catch(e) {}
+  try {
+    const res = await fetch(`/floors/${encodeURIComponent(pn)}/${fl}/mesh3d`);
+    if (res.ok) {
+      const data = await res.json();
+      render3DModel(data);
+    }
+  } catch(e) {}
+  loadZones();
+  updateStatusBar();
+}
+
+// ===================== ZONES =====================
+async function loadZones() {
+  try {
+    const res = await fetch(`/zones/${encodeURIComponent(STATE.projectName)}?floor_label=${STATE.activeFloor}`);
+    if (res.ok) { STATE.zones = await res.json(); renderZoneList(); renderZonesOn2D(); loadSummary(); }
+  } catch(e) {}
+}
+
+async function loadSummary() {
+  try {
+    const res = await fetch(`/summary/${encodeURIComponent(STATE.projectName)}`);
+    if (res.ok) {
+      const s = await res.json();
+      const planned = s.planned?.count || 0;
+      const completed = s.completed?.count || 0;
+      const totalVol = (s.planned?.calc_volume || 0) + (s.completed?.calc_volume || 0);
+      const trucks = Math.ceil(totalVol / 6);
+
+      document.getElementById('sum-planned').textContent = planned;
+      document.getElementById('sum-completed').textContent = completed;
+      document.getElementById('sum-calc-vol').textContent = totalVol.toFixed(1);
+      document.getElementById('sum-trucks').textContent = trucks;
+
+      // 모바일 요약 바 업데이트
+      document.getElementById('msm-planned').textContent = planned;
+      document.getElementById('msm-completed').textContent = completed;
+      document.getElementById('msm-vol').textContent = totalVol.toFixed(1);
+      document.getElementById('msm-trucks').textContent = trucks;
+      document.getElementById('msm-project-name').textContent = STATE.projectName;
+      document.getElementById('msm-floor').textContent = STATE.activeFloor;
+    }
+  } catch(e) {}
+}
+
+let actualPours = [];
+let selectedActualPourId = null;
+const actualPoursCache = {};
+const collapsedActual = {};
+const dirtyZoneOutlines = new Set();
+
+function getZoneActualPours(zoneId) {
+  return actualPoursCache[zoneId] || [];
+}
+
+function refreshActualPourDrawingUi() {
+  if (STATE.editTarget.type === 'actual-new') renderZoneList();
+}
+
+async function selectZoneDirect(z) {
+  STATE.selectedZone = z;
+  STATE.editingActual = false;
+  STATE.editTarget = { type: 'zone', id: z.id };
+  selectedActualPourId = null;
+  STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
+  await selectZoneAndShowMesh(z);
+  renderZoneList();
+  draw2D();
+}
+
+function renderMobileZoneSelector() {
+  const el = document.getElementById('mobile-zone-select');
+  if (!el) return;
+  el.innerHTML = '';
+  updateMobileZoneActions();
+  if (!STATE.zones || STATE.zones.length === 0) {
+    el.innerHTML = '<span style="font-size:10px;color:var(--text2);padding:4px">구역 없음</span>';
+    return;
+  }
+  STATE.zones.forEach(z => {
+    const chip = document.createElement('button');
+    const isSelected = STATE.selectedZone && STATE.selectedZone.id === z.id;
+    chip.className = 'mobile-zone-chip' + (isSelected ? ' active' : '');
+    chip.innerHTML = `${z.zone_name}<span class="mzc-vol">${(z.calculated_volume||0).toFixed(1)}m³</span>`;
+    chip.onclick = () => selectZoneDirect(z);
+    el.appendChild(chip);
+  });
+}
+
+function updateMobileZoneActions() {
+  const btn = document.getElementById('mobile-recalc-zone');
+  if (!btn) return;
+  const zone = STATE.selectedZone;
+  const isDirty = !!zone && dirtyZoneOutlines.has(zone.id);
+  btn.disabled = !isDirty;
+  btn.style.opacity = isDirty ? '1' : '0.5';
+  btn.textContent = zone
+    ? (isDirty ? `"${zone.zone_name}" 체적 재계산` : `"${zone.zone_name}" 윤곽 수정 후 재계산`)
+    : '구역 선택 후 체적 재계산';
+}
+
+function renderZoneList() {
+  const el = document.getElementById('zone-list');
+  el.innerHTML = '';
+  STATE.zones.forEach(z => {
+    const isSelected = STATE.selectedZone && STATE.selectedZone.id === z.id;
+    const calcVol = z.calculated_volume || 0;
+    const plannedTrucks = Math.ceil(calcVol / 6);
+    const pours = getZoneActualPours(z.id);
+    const totalActual = pours.reduce((s, p) => s + (p.volume || 0), 0);
+    const finalActual = (z.actual_volume && z.actual_volume > 0) ? z.actual_volume : null;
+    const finalActualDiff = finalActual === null ? null : finalActual - calcVol; // 완료 후 최종 실제 물량 비교
+    const remain = Math.max(0, calcVol - totalActual); // 타설차수 누적 기준 잔여
+    const actualTrucks = Math.ceil(totalActual / 6);
+    const remainTrucks = Math.ceil(remain / 6);
+    const isDrawingNewPour = STATE.editTarget.type === 'actual-new' && STATE.editTarget.id === z.id;
+
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+    item.style.cssText = 'flex-direction:column;align-items:stretch;' + (isSelected ? 'border:1px solid var(--primary);background:rgba(59,130,246,0.08);' : '');
+    item.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="dot" style="background:${z.color||'#f59e0b'}"></div>
+        <div class="info" style="flex:1;cursor:pointer">
+          <div style="font-weight:600">${z.zone_name}</div>
+          <div style="font-size:10px;color:var(--text2)">${z.status==='completed'?'완료':'예정'} | ${z.planned_date||'-'} | ${calcVol.toFixed(1)} m³ (${plannedTrucks}대)</div>
+        </div>
+        <div style="display:flex;gap:2px;flex-shrink:0">
+          <button class="zbtn z-calc" title="체적 산출">▶</button>
+          <button class="zbtn z-edit" title="수정">✎</button>
+          <button class="zbtn z-del" title="삭제">✕</button>
+        </div>
+      </div>
+      ${isSelected ? `
+      <div class="pour-status-panel">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:4px">최종 실제 물량 비교 (타설 완료 후 입력)</div>
+        <div class="pour-input-row actual-dual-row" style="margin-bottom:8px" data-actual-unit="vol">
+          <div class="actual-field">
+            <label>실제 물량(m³)</label>
+            <input type="number" class="actual-volume-input" data-zid="${z.id}" placeholder="m³" step="0.1" value="${z.actual_volume||''}">
+          </div>
+          <div class="actual-field">
+            <label>레미콘 대수(대)</label>
+            <input type="number" class="actual-truck-input" data-zid="${z.id}" placeholder="대" step="0.1" value="${z.actual_volume ? (z.actual_volume / 6).toFixed(1) : ''}">
+          </div>
+          <button class="btn btn-sm btn-success pour-save-btn" data-zid="${z.id}">최종실제 저장</button>
+        </div>
+
+        <div class="pour-compare">
+          <div class="pour-col"><div class="pour-val">${finalActual === null ? '-' : calcVol.toFixed(1)}</div><div class="pour-label">계획 타설(m³)</div></div>
+          <div class="pour-col"><div class="pour-val">${finalActual === null ? '-' : finalActual.toFixed(1)}</div><div class="pour-label">최종 실제(m³)</div></div>
+          <div class="pour-col"><div class="pour-val" style="color:${finalActualDiff === null ? 'var(--text2)' : (finalActualDiff>=0?'var(--warning)':'var(--success)')}">${finalActualDiff === null ? '-' : `${finalActualDiff>=0?'+':''}${finalActualDiff.toFixed(1)}`}</div><div class="pour-label">최종실제-계획 차이</div></div>
+        </div>
+
+        <div style="font-size:10px;color:var(--text2);margin-bottom:4px">타설차수 진행 현황 (진행 중 누적 기준)</div>
+        <div class="pour-compare">
+          <div class="pour-col"><div class="pour-val">${calcVol.toFixed(1)}</div><div class="pour-label">계획(m³)</div><div class="pour-label">${plannedTrucks}대</div></div>
+          <div class="pour-col"><div class="pour-val">${totalActual.toFixed(1)}</div><div class="pour-label">누적 타설(m³)</div><div class="pour-label">${actualTrucks}대</div></div>
+          <div class="pour-col"><div class="pour-val" style="color:${remain>0?'var(--warning)':'var(--success)'}">${remain.toFixed(1)}</div><div class="pour-label">계획 대비 잔여(${remainTrucks}대)</div></div>
+        </div>
+
+        <div style="display:flex;gap:4px;margin-bottom:6px">
+          <button class="btn btn-sm btn-add-remaining" data-zid="${z.id}" style="flex:1;background:var(--surface2);color:var(--text2);border:1px dashed var(--border)">+ 잔여영역 폴리라인 생성</button>
+          <button class="btn btn-sm btn-add-pour" data-zid="${z.id}" style="flex:1;background:var(--success);color:#fff">${isDrawingNewPour && STATE.drawingPoints.length >= 3 ? '타설 폴리라인 저장' : '+ 타설 폴리라인 그리기'}</button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:10px;color:var(--text2)">타설차수 목록</div>
+          <button class="zbtn toggle-actuals" title="토글">${collapsedActual[z.id] ? '▸' : '▾'}</button>
+        </div>
+        <div class="actual-pours-sub" id="actual-sub-${z.id}" style="display:${collapsedActual[z.id] ? 'none' : 'block'}"></div>
+      </div>` : ''}`;
+
+    item.querySelector('.info').onclick = async () => {
+      // 같은 구역 재클릭 시 접기(토글 닫기)
+      if (STATE.selectedZone && STATE.selectedZone.id === z.id && STATE.editTarget.type === 'zone') {
+        STATE.selectedZone = null;
+        STATE.editingActual = false;
+        STATE.editTarget = { type: 'zone', id: null };
+        selectedActualPourId = null;
+        STATE.drawingPoints = [];
+        clearZone3DHighlight();
+        renderZoneList();
+        draw2D();
+        closeSidebarOnMobile();
+        return;
+      }
+
+      STATE.selectedZone = z;
+      STATE.editingActual = false;
+      STATE.editTarget = { type: 'zone', id: z.id };
+      selectedActualPourId = null;
+      STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
+      await selectZoneAndShowMesh(z);
+      renderZoneList();
+      draw2D();
+      closeSidebarOnMobile();
+    };
+    item.querySelector('.z-calc').onclick = async (ev) => {
+      ev.stopPropagation();
+      STATE.selectedZone = z;
+      STATE.editingActual = false;
+      STATE.editTarget = { type: 'zone', id: z.id };
+      STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
+      await selectZoneAndShowMesh(z);
+      draw2D();
+      await runCalculation(z.id);
+      dirtyZoneOutlines.delete(z.id);
+      updateMobileZoneActions();
+      loadZones();
+    };
+    item.querySelector('.z-edit').onclick = (ev) => { ev.stopPropagation(); showZoneModal(z); };
+    item.querySelector('.z-del').onclick = async (ev) => {
+      ev.stopPropagation();
+      await fetch(`/zones/${z.id}`,{method:'DELETE'});
+      delete actualPoursCache[z.id];
+      dirtyZoneOutlines.delete(z.id);
+      actualPours = [];
+      STATE.selectedZone = null;
+      STATE.editingActual = false;
+      STATE.editTarget = { type: 'zone', id: null };
+      STATE.drawingPoints = [];
+      selectedActualPourId = null;
+      loadZones();
+      draw2D();
+      showToast(`"${z.zone_name}" 삭제됨`,'success');
+    };
+    el.appendChild(item);
+
+    if (isSelected) {
+      // 선택된 구역은 항상 최신 타설차수 목록 로드
+      if (!collapsedActual[z.id]) loadActualPoursInline(z.id, false);
+
+      const saveBtn = item.querySelector('.pour-save-btn');
+      if (saveBtn) {
+        const volumeInput = item.querySelector('.actual-volume-input');
+        const truckInput = item.querySelector('.actual-truck-input');
+        const dualRow = item.querySelector('.actual-dual-row');
+        if (volumeInput && truckInput && dualRow) {
+          volumeInput.oninput = () => {
+            dualRow.dataset.actualUnit = 'vol';
+            const vol = parseFloat(volumeInput.value);
+            truckInput.value = !isNaN(vol) && vol > 0 ? (vol / 6).toFixed(1) : '';
+          };
+          truckInput.oninput = () => {
+            dualRow.dataset.actualUnit = 'trucks';
+            const trucks = parseFloat(truckInput.value);
+            volumeInput.value = !isNaN(trucks) && trucks > 0 ? (trucks * 6).toFixed(1) : '';
+          };
+        }
+        saveBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          const unit = dualRow?.dataset.actualUnit || 'vol';
+          const sourceInput = unit === 'trucks' ? truckInput : volumeInput;
+          let val = parseFloat(sourceInput?.value);
+          if (isNaN(val) || val <= 0) { showToast('실제 물량 또는 레미콘 대수를 입력하세요', 'error'); return; }
+          if (unit === 'trucks') val = val * 6;
+          await fetch(`/zones/${z.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ actual_volume: val }) });
+          showToast(`최종 실제 물량 ${val.toFixed(1)} m³ 저장`, 'success');
+          loadZones();
+        };
+      }
+
+      const toggleBtn = item.querySelector('.toggle-actuals');
+      if (toggleBtn) {
+        toggleBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          collapsedActual[z.id] = !collapsedActual[z.id];
+          renderZoneList();
+        };
+      }
+
+      const remBtn = item.querySelector('.btn-add-remaining');
+      if (remBtn) {
+        remBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          const rr = await fetch(`/actual-pours/remaining/${z.id}`);
+          const rd = await rr.json();
+          if (!rd.polygon || rd.polygon.length < 3) {
+            showToast('잔여 영역이 없거나 계산 실패', 'error');
+            return;
+          }
+          STATE.editingActual = true;
+          STATE.editTarget = { type: 'actual-new', id: z.id };
+          selectedActualPourId = null;
+          STATE.drawingPoints = rd.polygon.map(p => ({x:p.x,y:p.y}));
+          setActiveTool('select');
+          renderZoneList();
+          draw2D();
+          showToast('잔여 영역 폴리라인 생성됨 (필요시 수정 후 저장)', 'success');
+        };
+      }
+
+      const addBtn = item.querySelector('.btn-add-pour');
+      if (addBtn) {
+        addBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          if (STATE.editTarget.type !== 'actual-new' || STATE.editTarget.id !== z.id) {
+            STATE.selectedZone = z;
+            STATE.editingActual = true;
+            STATE.editTarget = { type: 'actual-new', id: z.id };
+            selectedActualPourId = null;
+            STATE.drawingPoints = [];
+            STATE.isDrawing = true;
+            setActiveTool('draw');
+            renderZoneList();
+            draw2D();
+            showToast('2D 화면을 클릭해서 타설 범위 폴리라인을 그리세요. 3점 이상 그린 뒤 저장하세요.', 'success');
+            return;
+          }
+          if (STATE.drawingPoints.length < 3) { showToast('타설 폴리라인은 최소 3점 이상 필요합니다', 'error'); return; }
+          const label = prompt('타설 이름', `${pours.length + 1}차 타설`);
+          if (!label) return;
+          await fetch('/actual-pours', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              zone_id: z.id,
+              pour_label: label,
+              polygon: STATE.drawingPoints.map(p=>({x:p.x,y:p.y})),
+              pour_date: new Date().toISOString().split('T')[0]
+            })
+          });
+          STATE.editingActual = false;
+          STATE.editTarget = { type: 'zone', id: z.id };
+          STATE.isDrawing = false;
+          setActiveTool('select');
+          STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
+          await loadActualPoursInline(z.id, true);
+          showToast(`"${label}" 저장`, 'success');
+        };
+      }
+    }
+  });
+  renderMobileZoneSelector();
+}
+
+function markZoneOutlineDirty(zoneId) {
+  if (!zoneId) return;
+  dirtyZoneOutlines.add(zoneId);
+  updateMobileZoneActions();
+}
+
+document.getElementById('btn-new-zone').onclick = () => {
+  closeSidebarOnMobile();
+  if (!STATE.activeFloor || !STATE.uploadedFloors[STATE.activeFloor]) {
+    showToast('먼저 해당 층 모델을 업로드하세요', 'error');
+    return;
+  }
+
+  if (STATE.tool === 'draw') {
+    if (STATE.editTarget.type === 'actual-new') {
+      showToast('타설 폴리라인은 타설차수의 저장 버튼으로 저장하세요', 'error');
+      return;
+    }
+    if (STATE.drawingPoints.length >= 3) {
+      STATE.isDrawing = false;
+      showZoneModal();
+      return;
+    }
+    if (STATE.drawingPoints.length > 0) {
+      showToast('폴리라인은 최소 3점 이상 필요합니다', 'error');
+      return;
+    }
+  }
+
+  STATE.selectedZone = null;
+  STATE.editingActual = false;
+  STATE.editTarget = { type: 'zone', id: null };
+  selectedActualPourId = null;
+  actualPours = [];
+  STATE.drawingPoints = [];
+  STATE.isDrawing = true;
+  setActiveTool('draw');
+  clearZone3DHighlight();
+  renderZoneList();
+  draw2D();
+  updateNewZoneButton();
+  showToast('2D 화면을 클릭해서 새 구역 폴리라인을 그리세요. 3점 이상이면 버튼이 구역 저장으로 바뀝니다.', 'success');
+};
+
+document.getElementById('mobile-recalc-zone').onclick = async () => {
+  if (!STATE.selectedZone) {
+    showToast('먼저 구역을 선택하세요', 'error');
+    return;
+  }
+  if (!dirtyZoneOutlines.has(STATE.selectedZone.id)) {
+    showToast('윤곽선이 수정된 경우에만 재계산할 수 있습니다', 'error');
+    return;
+  }
+  await runCalculation(STATE.selectedZone.id);
+  loadZones();
+};
+
+// ===================== ACTUAL POURS =====================
+async function loadActualPours() {
+  if (!STATE.selectedZone) { actualPours = []; return; }
+  await loadActualPoursInline(STATE.selectedZone.id, false);
+}
+
+async function loadActualPoursInline(zoneId, rerender = false) {
+  try {
+    const r = await fetch(`/actual-pours/${zoneId}`);
+    if (r.ok) actualPoursCache[zoneId] = await r.json();
+    else actualPoursCache[zoneId] = [];
+  } catch(e) {
+    actualPoursCache[zoneId] = [];
+  }
+  actualPours = actualPoursCache[zoneId];
+  const container = document.getElementById(`actual-sub-${zoneId}`);
+  if (container) {
+    const pours = actualPoursCache[zoneId] || [];
+    if (pours.length === 0) {
+      container.innerHTML = '<div style="font-size:10px;color:var(--text2);padding:2px 0">타설 기록 없음</div>';
+    } else {
+      container.innerHTML = '';
+      let cumulative = 0;
+      const plan = (STATE.selectedZone && STATE.selectedZone.id === zoneId) ? (STATE.selectedZone.calculated_volume || 0) : 0;
+      pours.forEach((ap, idx) => {
+        cumulative += (ap.volume || 0);
+        const rem = Math.max(0, plan - cumulative);
+        const remTr = Math.ceil(rem / 6);
+        const row = document.createElement('div');
+        row.className = 'actual-pour-row';
+        row.innerHTML = `
+          <span class="ap-dot"></span>
+          <span class="ap-name">${ap.pour_label || `${idx+1}차 타설`}</span>
+          <span class="ap-info">이번 ${(ap.volume||0).toFixed(1)}m³ / 계획 대비 잔여 ${rem.toFixed(1)}m³(${remTr}대)</span>
+          <span class="ap-actions">
+            <button class="zbtn ap-calc" title="체적계산">▶</button>
+            <button class="zbtn ap-show" title="편집">◎</button>
+            <button class="zbtn z-del" title="삭제">✕</button>
+          </span>`;
+        row.querySelector('.ap-show').onclick = (ev) => {
+          ev.stopPropagation();
+          STATE.editingActual = true;
+          STATE.editTarget = { type: 'actual', id: ap.id };
+          selectedActualPourId = ap.id;
+          STATE.drawingPoints = ap.polygon.map(p=>({x:p.x,y:p.y}));
+          draw2D();
+          showToast(`"${ap.pour_label}" 편집 활성화`, 'success');
+        };
+        row.querySelector('.ap-calc').onclick = async (ev) => {
+          ev.stopPropagation();
+          const calcOverlay = showCalcOverlay('타설 체적 계산 중', ap.pour_label || `${idx+1}차 타설`, '계산 요청 전송 중...', 10);
+          await waitForPaint();
+          try {
+            const cr = await fetch(`/actual-pours/${ap.id}/calculate`, { method: 'POST' });
+            calcOverlay.setProgress(70, '체적 계산 결과 정리 중...');
+            const cd = await cr.json();
+            if (cd.status === 'error') {
+              calcOverlay.remove();
+              showToast('타설 체적 계산 실패', 'error');
+              return;
+            }
+            calcOverlay.setProgress(100, '완료');
+            await new Promise(r => setTimeout(r, 250));
+            calcOverlay.remove();
+            showToast(`${ap.pour_label}: ${cd.volume.toFixed(2)} m³ (${cd.trucks}대)`, 'success');
+            await loadActualPoursInline(zoneId, false);
+            loadZones();
+          } catch(e) {
+            calcOverlay.remove();
+            showToast('타설 체적 계산 실패', 'error');
+          }
+        };
+        row.querySelector('.z-del').onclick = async (ev) => {
+          ev.stopPropagation();
+          await fetch(`/actual-pours/${ap.id}`, {method:'DELETE'});
+          if (selectedActualPourId === ap.id) {
+            selectedActualPourId = null;
+            STATE.editingActual = false;
+            STATE.editTarget = { type: 'zone', id: zoneId };
+          }
+          await loadActualPoursInline(zoneId, true);
+          draw2D();
+        };
+        container.appendChild(row);
+      });
+    }
+  }
+  if (rerender) renderZoneList();
+  draw2D();
+}
+
+function showZoneModal(existingZone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const zone = existingZone || {};
+  const today = new Date().toISOString().split('T')[0];
+  overlay.innerHTML = `<div class="modal">
+    <h3>${existingZone ? '구역 수정' : '새 구역 저장'}</h3>
+    <input type="text" id="m-zone-name" placeholder="구역 이름 (예: A-1구역)" value="${zone.zone_name||''}">
+    <select id="m-status"><option value="planned" ${zone.status==='planned'||!zone.status?'selected':''}>타설 예정</option><option value="completed" ${zone.status==='completed'?'selected':''}>타설 완료</option></select>
+    <label style="font-size:11px;color:var(--text2);margin-top:4px">예정 날짜</label>
+    <input type="date" id="m-planned-date" value="${zone.planned_date||today}">
+    ${existingZone ? `<label style="font-size:11px;color:var(--text2);margin-top:4px">최종 실제 체적 (m³)</label>
+    <input type="number" id="m-actual-vol" placeholder="완료 후 실제 타설 체적" step="0.01" value="${zone.actual_volume||''}">` : ''}
+    <textarea id="m-memo" placeholder="메모">${zone.memo||''}</textarea>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="m-cancel">취소</button>
+      <button class="btn btn-success btn-sm" id="m-save">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#m-cancel').onclick = () => overlay.remove();
+
+  overlay.querySelector('#m-save').onclick = async () => {
+    await saveZone(overlay, existingZone);
+    STATE.isDrawing = false;
+    setActiveTool('select');
+    updateNewZoneButton();
+    overlay.remove(); loadZones();
+  };
+}
+
+async function saveZone(overlay, existing) {
+  const name = overlay.querySelector('#m-zone-name').value || `구역-${Date.now()%1000}`;
+  const status = overlay.querySelector('#m-status').value;
+  const planned_date = overlay.querySelector('#m-planned-date').value || null;
+  const actualEl = overlay.querySelector('#m-actual-vol');
+  const actual_volume = actualEl ? (parseFloat(actualEl.value) || null) : null;
+  const memo = overlay.querySelector('#m-memo').value || null;
+
+  if (existing) {
+    const body = {zone_name:name, status, planned_date, actual_volume, memo};
+    // 폴리라인 편집된 경우 polygon도 업데이트
+    if (STATE.drawingPoints.length >= 3) {
+      body.polygon = STATE.drawingPoints.map(p => ({x:p.x, y:p.y}));
+    }
+    await fetch(`/zones/${existing.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    STATE.drawingPoints = [];
+    return {zone_id: existing.id};
+  } else {
+    const polygon = STATE.drawingPoints.map(p => ({x:p.x, y:p.y}));
+    const res = await fetch('/zones', { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project_name:STATE.projectName, floor_label:STATE.activeFloor, zone_name:name, polygon, status, planned_date, memo})});
+    const d = await res.json();
+    STATE.drawingPoints = [];
+    return d;
+  }
+}
+
+// ===================== 2D VIEW =====================
+const canvas2d = document.getElementById('canvas2d');
+const ctx2d = canvas2d.getContext('2d');
+let view2d = { cx:0, cy:0, scale:1, width:0, height:0 };
+let previewData = null;
+
+// Offscreen cache for mesh (prevents re-drawing 100k+ faces every frame)
+let meshCache = null;  // {canvas, cx, cy, scale}
+
+function resize2D() {
+  const cont = document.getElementById('view2d-container');
+  canvas2d.width = cont.clientWidth;
+  canvas2d.height = cont.clientHeight;
+  view2d.width = canvas2d.width;
+  view2d.height = canvas2d.height;
+  meshCache = null;
+  draw2D();
+}
+
+function worldToScreen(wx, wy) {
+  return {
+    x: view2d.width/2 + (wx - view2d.cx) * view2d.scale,
+    y: view2d.height/2 - (wy - view2d.cy) * view2d.scale
+  };
+}
+
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - view2d.width/2) / view2d.scale + view2d.cx,
+    y: -(sy - view2d.height/2) / view2d.scale + view2d.cy
+  };
+}
+
+function snapToGrid(wx, wy) {
+  const s = STATE.snapSize;
+  const zoomFactor = view2d.scale;
+  let effectiveSnap = s;
+  if (zoomFactor > 2) effectiveSnap = s / 5;
+  else if (zoomFactor > 1) effectiveSnap = s / 2;
+  return {
+    x: Math.round(wx / effectiveSnap) * effectiveSnap,
+    y: Math.round(wy / effectiveSnap) * effectiveSnap
+  };
+}
+
+function render2DPreview(data) {
+  previewData = data;
+  meshCache = null;
+  if (data.bbox) {
+    const b = data.bbox;
+    view2d.cx = (b.min.x + b.max.x) / 2;
+    view2d.cy = (b.min.y + b.max.y) / 2;
+    const dx = b.max.x - b.min.x;
+    const dy = b.max.y - b.min.y;
+    const margin = 1.2;
+    view2d.scale = Math.min(view2d.width / (dx * margin), view2d.height / (dy * margin));
+  }
+  draw2D();
+}
+
+function draw2D() {
+  const c = ctx2d;
+  c.clearRect(0, 0, view2d.width, view2d.height);
+  c.fillStyle = '#0a0e1a';
+  c.fillRect(0, 0, view2d.width, view2d.height);
+
+  drawGrid(c);
+
+  // 메시 캐시: 이동/줌 중에는 기존 캐시를 변환해서 표시 (빠름)
+  if (meshCache && (meshCache.scale !== view2d.scale || meshCache.cx !== view2d.cx || meshCache.cy !== view2d.cy)) {
+    // 이전 캐시를 오프셋/스케일 변환해서 임시 표시
+    const dScale = view2d.scale / meshCache.scale;
+    const dxPx = (meshCache.cx - view2d.cx) * view2d.scale;
+    const dyPx = -(meshCache.cy - view2d.cy) * view2d.scale;
+    c.save();
+    c.translate(view2d.width/2 + dxPx, view2d.height/2 + dyPx);
+    c.scale(dScale, dScale);
+    c.translate(-view2d.width/2, -view2d.height/2);
+    c.drawImage(meshCache.canvas, 0, 0);
+    c.restore();
+    // 디바운스로 캐시 재생성 예약
+    scheduleMeshRebuild();
+  } else {
+    drawPreviewGeometry(c);
+  }
+
+  drawExistingZones(c);
+  drawActualPoursOn2D(c);
+  drawCurrentPolygon(c);
+}
+
+let meshRebuildTimer = null;
+function scheduleMeshRebuild() {
+  if (meshRebuildTimer) clearTimeout(meshRebuildTimer);
+  meshRebuildTimer = setTimeout(() => {
+    meshCache = null;
+    draw2D();
+  }, 150);
+}
+
+function drawGrid(c) {
+  const s = STATE.snapSize;
+  let zoomFactor = view2d.scale;
+  let gridStep = s;
+  if (zoomFactor > 2) gridStep = s / 5;
+  else if (zoomFactor > 1) gridStep = s / 2;
+
+  const tl = screenToWorld(0, view2d.height);
+  const br = screenToWorld(view2d.width, 0);
+  const startX = Math.floor(tl.x / gridStep) * gridStep;
+  const startY = Math.floor(tl.y / gridStep) * gridStep;
+
+  c.strokeStyle = 'rgba(100,116,139,0.15)';
+  c.lineWidth = 0.5;
+  for (let x = startX; x <= br.x; x += gridStep) {
+    const p = worldToScreen(x, 0);
+    c.beginPath(); c.moveTo(p.x, 0); c.lineTo(p.x, view2d.height); c.stroke();
+  }
+  for (let y = startY; y <= br.y; y += gridStep) {
+    const p = worldToScreen(0, y);
+    c.beginPath(); c.moveTo(0, p.y); c.lineTo(view2d.width, p.y); c.stroke();
+  }
+
+  const o = worldToScreen(0, 0);
+  c.strokeStyle = 'rgba(239,68,68,0.4)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(o.x, 0); c.lineTo(o.x, view2d.height); c.stroke();
+  c.strokeStyle = 'rgba(34,197,94,0.4)';
+  c.beginPath(); c.moveTo(0, o.y); c.lineTo(view2d.width, o.y); c.stroke();
+}
+
+function drawPreviewGeometry(c) {
+  if (!previewData) return;
+
+  // 캐시가 없거나 줌 레벨이 변경되면 오프스크린에 미리 렌더링
+  if (!meshCache || meshCache.scale !== view2d.scale || meshCache.cx !== view2d.cx || meshCache.cy !== view2d.cy) {
+    buildMeshCache();
+  }
+
+  if (meshCache) {
+    c.drawImage(meshCache.canvas, 0, 0);
+  }
+}
+
+function buildMeshCache() {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = view2d.width;
+  offscreen.height = view2d.height;
+  const oc = offscreen.getContext('2d');
+
+  oc.strokeStyle = 'rgba(148,163,184,0.5)';
+  oc.fillStyle = 'rgba(100,116,139,0.08)';
+  oc.lineWidth = 0.5;
+
+  if (previewData.meshes) {
+    previewData.meshes.forEach(m => {
+      // 대형 메시는 면 수 제한 (성능)
+      const maxFaces = 8000;
+      const step = m.faces.length > maxFaces ? Math.ceil(m.faces.length / maxFaces) : 1;
+
+      for (let fi = 0; fi < m.faces.length; fi += step) {
+        const face = m.faces[fi];
+        oc.beginPath();
+        for (let i = 0; i < face.length; i++) {
+          const v = m.vertices[face[i]];
+          if (!v) continue;
+          const px = view2d.width/2 + (v[0] - view2d.cx) * view2d.scale;
+          const py = view2d.height/2 - (v[1] - view2d.cy) * view2d.scale;
+          if (i === 0) oc.moveTo(px, py); else oc.lineTo(px, py);
+        }
+        oc.closePath();
+        oc.fill();
+        oc.stroke();
+      }
+    });
+  }
+
+  if (previewData.edges) {
+    oc.strokeStyle = 'rgba(148,163,184,0.6)';
+    oc.lineWidth = 1;
+    previewData.edges.forEach(edge => {
+      if (Array.isArray(edge[0]) && Array.isArray(edge[0][0])) {
+        edge.forEach(seg => { drawEdgeSegOn(oc, seg); });
+      } else if (Array.isArray(edge[0])) {
+        drawEdgeSegOn(oc, edge);
+      }
+    });
+  }
+
+  meshCache = { canvas: offscreen, scale: view2d.scale, cx: view2d.cx, cy: view2d.cy };
+}
+
+function drawEdgeSegOn(c, seg) {
+  if (seg.length < 2) return;
+  const p1x = view2d.width/2 + (seg[0][0] - view2d.cx) * view2d.scale;
+  const p1y = view2d.height/2 - (seg[0][1] - view2d.cy) * view2d.scale;
+  const p2x = view2d.width/2 + (seg[1][0] - view2d.cx) * view2d.scale;
+  const p2y = view2d.height/2 - (seg[1][1] - view2d.cy) * view2d.scale;
+  c.beginPath(); c.moveTo(p1x, p1y); c.lineTo(p2x, p2y); c.stroke();
+}
+
+function drawExistingZones(c) {
+  STATE.zones.forEach(z => {
+    if (!z.polygon || z.polygon.length < 3) return;
+    const isSelected = STATE.selectedZone && STATE.selectedZone.id === z.id && STATE.editTarget.type === 'zone';
+    const color = isSelected ? '#3b82f6' : (z.color || '#f59e0b');
+    c.fillStyle = isSelected ? 'rgba(59,130,246,0.28)' : 'rgba(245,158,11,0.12)';
+    c.strokeStyle = color;
+    c.lineWidth = isSelected ? 3 : 2;
+    if (isSelected) c.setLineDash([6, 3]); else c.setLineDash([]);
+    c.beginPath();
+    z.polygon.forEach((pt, i) => {
+      const p = worldToScreen(pt.x, pt.y);
+      if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+    });
+    c.closePath(); c.fill(); c.stroke();
+    c.setLineDash([]);
+    const center = z.polygon.reduce((a,p)=>({x:a.x+p.x/z.polygon.length,y:a.y+p.y/z.polygon.length}),{x:0,y:0});
+    const cp = worldToScreen(center.x, center.y);
+    c.fillStyle = '#fff'; c.font = '11px sans-serif'; c.textAlign = 'center';
+    c.fillText(z.zone_name, cp.x, cp.y);
+    if (isSelected) {
+      c.fillStyle = 'rgba(255,255,255,0.7)'; c.font = '9px sans-serif';
+      c.fillText('[선택됨 - Del로 삭제]', cp.x, cp.y + 14);
+    }
+  });
+}
+
+function drawActualPoursOn2D(c) {
+  if (!STATE.selectedZone) return;
+  if (!actualPours || actualPours.length === 0) return;
+  actualPours.forEach(ap => {
+    if (!ap.polygon || ap.polygon.length < 3) return;
+    const isEditingActual = STATE.editTarget.type === 'actual' && STATE.editTarget.id === ap.id;
+    c.fillStyle = isEditingActual ? 'rgba(34,197,94,0.35)' : 'rgba(16,185,129,0.22)';
+    c.strokeStyle = isEditingActual ? '#22c55e' : '#10b981';
+    c.lineWidth = isEditingActual ? 3 : 2;
+    c.setLineDash([4, 2]);
+    c.beginPath();
+    ap.polygon.forEach((pt, i) => {
+      const p = worldToScreen(pt.x, pt.y);
+      if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+    });
+    c.closePath(); c.fill(); c.stroke();
+    c.setLineDash([]);
+    const center = ap.polygon.reduce((a,p)=>({x:a.x+p.x/ap.polygon.length,y:a.y+p.y/ap.polygon.length}),{x:0,y:0});
+    const cp = worldToScreen(center.x, center.y);
+    c.fillStyle = '#10b981'; c.font = '9px sans-serif'; c.textAlign = 'center';
+    c.fillText(ap.pour_label, cp.x, cp.y);
+  });
+}
+
+function drawCurrentPolygon(c) {
+  if (STATE.drawingPoints.length === 0) return;
+  const isActual = STATE.editTarget.type === 'actual' || STATE.editTarget.type === 'actual-new';
+  c.strokeStyle = isActual ? '#22c55e' : '#3b82f6';
+  c.fillStyle = isActual ? 'rgba(34,197,94,0.18)' : 'rgba(59,130,246,0.15)';
+  c.lineWidth = 2;
+  c.beginPath();
+  STATE.drawingPoints.forEach((pt, i) => {
+    const p = worldToScreen(pt.x, pt.y);
+    if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+  });
+  if (STATE.drawingPoints.length >= 3) { c.closePath(); c.fill(); }
+  c.stroke();
+
+  // 꼭짓점 (더블클릭으로 삭제 가능 표시)
+  STATE.drawingPoints.forEach((pt, i) => {
+    const p = worldToScreen(pt.x, pt.y);
+    c.fillStyle = isActual ? '#22c55e' : '#3b82f6';
+    c.strokeStyle = '#fff';
+    c.lineWidth = 2;
+    c.beginPath(); c.arc(p.x, p.y, isActual ? 6 : 5, 0, Math.PI*2); c.fill(); c.stroke();
+    // 인덱스 표시
+    c.fillStyle = '#fff'; c.font = '9px sans-serif'; c.textAlign = 'center';
+    c.fillText(i+1, p.x, p.y - 10);
+  });
+  c.fillStyle = isActual ? '#22c55e' : '#3b82f6';
+  c.font = '10px sans-serif';
+  c.textAlign = 'left';
+  c.fillText(isActual ? '[실제 타설 편집]' : '[계획 구역 편집]', 12, 20);
+}
+
+// 2D Mouse events
+let isPanning2D = false, panStart = {x:0,y:0};
+const VERTEX_HIT_RADIUS = 8;  // px
+
+function findDrawingVertexAt(sx, sy, radius = VERTEX_HIT_RADIUS) {
+  for (let i = 0; i < STATE.drawingPoints.length; i++) {
+    const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
+    if (Math.sqrt((p.x-sx)**2 + (p.y-sy)**2) <= radius) return i;
+  }
+  return -1;
+}
+
+function getActivePourBoundary() {
+  if (!STATE.selectedZone || !STATE.selectedZone.polygon || STATE.selectedZone.polygon.length < 3) return null;
+  if (STATE.editTarget.type === 'actual' || STATE.editTarget.type === 'actual-new') return STATE.selectedZone.polygon;
+  return null;
+}
+
+function canPlaceDrawingPoint(pt) {
+  const boundary = getActivePourBoundary();
+  if (!boundary) return true;
+  return pointInPolygon(pt, boundary);
+}
+
+async function handlePolylineEditGesture(sx, sy, { persist = false, allowBelow3 = false, radius = VERTEX_HIT_RADIUS } = {}) {
+  if (STATE.drawingPoints.length < 2) return false;
+
+  const hitIdx = findDrawingVertexAt(sx, sy, radius);
+  if (hitIdx >= 0) {
+    if (!allowBelow3 && STATE.drawingPoints.length <= 3) {
+      showToast('최소 3개 꼭짓점이 필요합니다', 'error');
+      return true;
+    }
+    STATE.drawingPoints.splice(hitIdx, 1);
+    if (persist) await persistEditingPolygon();
+    refreshActualPourDrawingUi();
+    updateNewZoneButton();
+    draw2D();
+    showToast(`절점 ${hitIdx+1} 삭제됨`, 'success');
+    return true;
+  }
+
+  const n = STATE.drawingPoints.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const p1 = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
+    const p2 = worldToScreen(STATE.drawingPoints[j].x, STATE.drawingPoints[j].y);
+    const dist = pointToSegmentDist(sx, sy, p1.x, p1.y, p2.x, p2.y);
+    if (dist <= radius) {
+      const w = screenToWorld(sx, sy);
+      if (!canPlaceDrawingPoint(w)) {
+        showToast('타설 폴리라인은 계획 구역 안에만 추가할 수 있습니다', 'error');
+        return true;
+      }
+      STATE.drawingPoints.splice(j, 0, w);
+      if (persist) await persistEditingPolygon();
+      refreshActualPourDrawingUi();
+      updateNewZoneButton();
+      draw2D();
+      showToast(`선분 ${i+1}-${j+1} 사이에 점 추가됨 (${STATE.drawingPoints.length}점)`, 'success');
+      return true;
+    }
+  }
+  return false;
+}
+
+canvas2d.addEventListener('mousedown', e => {
+  if (STATE.tool === 'pan' || e.button === 1) {
+    isPanning2D = true; panStart = {x:e.offsetX, y:e.offsetY}; return;
+  }
+  if (STATE.tool === 'draw') {
+    const hitIdx = findDrawingVertexAt(e.offsetX, e.offsetY);
+    if (hitIdx >= 0) return;
+    const w = screenToWorld(e.offsetX, e.offsetY);
+    if (!canPlaceDrawingPoint(w)) {
+      showToast('타설 폴리라인은 계획 구역 안에만 그릴 수 있습니다', 'error');
+      return;
+    }
+    STATE.drawingPoints.push(w);
+    STATE.isDrawing = true;
+    refreshActualPourDrawingUi();
+    updateNewZoneButton();
+    draw2D();
+  }
+  if (STATE.tool === 'select' && e.button === 0) {
+    // 현재 그리고 있는 폴리곤 꼭짓점 드래그 체크
+    if (STATE.drawingPoints.length > 0) {
+      for (let i = 0; i < STATE.drawingPoints.length; i++) {
+        const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
+        if (Math.sqrt((p.x-e.offsetX)**2 + (p.y-e.offsetY)**2) <= VERTEX_HIT_RADIUS) {
+          STATE.draggingVertex = i;
+          return;
+        }
+      }
+    }
+    // 기존 구역 선택 체크
+    const w = screenToWorld(e.offsetX, e.offsetY);
+    let found = false;
+    // 실제 타설 폴리라인 우선 선택
+    if (STATE.selectedZone) {
+      const pours = getZoneActualPours(STATE.selectedZone.id);
+      for (const ap of pours) {
+        if (ap.polygon && ap.polygon.length >= 3 && pointInPolygon(w, ap.polygon)) {
+          STATE.editingActual = true;
+          STATE.editTarget = { type: 'actual', id: ap.id };
+          selectedActualPourId = ap.id;
+          STATE.drawingPoints = ap.polygon.map(p => ({x:p.x, y:p.y}));
+          draw2D();
+          showToast(`"${ap.pour_label}" 편집 활성화`, 'success');
+          return;
+        }
+      }
+    }
+    for (const z of STATE.zones) {
+      if (z.polygon && z.polygon.length >= 3 && pointInPolygon(w, z.polygon)) {
+        STATE.selectedZone = z;
+        STATE.editingActual = false;
+        STATE.editTarget = { type: 'zone', id: z.id };
+        selectedActualPourId = null;
+        STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
+        selectZoneAndShowMesh(z);
+        found = true;
+        draw2D();
+        showToast(`"${z.zone_name}" 선택됨 (꼭짓점 드래그로 편집, Del 삭제)`, 'success');
+        break;
+      }
+    }
+    if (!found && STATE.selectedZone) {
+      STATE.selectedZone = null;
+      STATE.drawingPoints = [];
+      clearZone3DHighlight();
+      draw2D();
+    }
+  }
+});
+
+canvas2d.addEventListener('mousemove', e => {
+  // 꼭짓점 드래그
+  if (STATE.draggingVertex !== null && STATE.draggingVertex !== undefined) {
+    const w = screenToWorld(e.offsetX, e.offsetY);
+    if (canPlaceDrawingPoint(w)) {
+      STATE.drawingPoints[STATE.draggingVertex] = w;
+    }
+    draw2D();
+    return;
+  }
+  if (isPanning2D) {
+    const dx = e.offsetX - panStart.x;
+    const dy = e.offsetY - panStart.y;
+    view2d.cx -= dx / view2d.scale;
+    view2d.cy += dy / view2d.scale;
+    panStart = {x:e.offsetX, y:e.offsetY};
+    draw2D();
+    return;
+  }
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  document.getElementById('status-cursor').textContent = `X: ${Math.round(w.x)}, Y: ${Math.round(w.y)}`;
+});
+
+canvas2d.addEventListener('mouseup', async () => {
+  if (STATE.draggingVertex !== null && STATE.drawingPoints.length >= 3) {
+    await persistEditingPolygon();
+  }
+  isPanning2D = false;
+  STATE.draggingVertex = null;
+});
+
+canvas2d.addEventListener('dblclick', async e => {
+  const sx = e.offsetX, sy = e.offsetY;
+  if (STATE.drawingPoints.length >= 2) {
+    const handled = await handlePolylineEditGesture(sx, sy, {
+      persist: STATE.tool === 'select',
+      allowBelow3: STATE.tool === 'draw',
+      radius: VERTEX_HIT_RADIUS
+    });
+    if (handled) return;
+  }
+
+  // 그리기 모드: 폴리라인 완성
+  if (STATE.tool === 'draw' && STATE.drawingPoints.length >= 3) {
+    STATE.isDrawing = false;
+    const saveTarget = STATE.editTarget.type === 'actual-new' ? '타설차수의 저장 버튼' : '"새 구역" 버튼';
+    showToast(`폴리라인 완성 (${STATE.drawingPoints.length}점). ${saveTarget}으로 저장하세요.`, 'success');
+    return;
+  }
+});
+
+function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx*dx + dy*dy;
+  if (lenSq === 0) return Math.sqrt((px-x1)**2 + (py-y1)**2);
+  let t = ((px-x1)*dx + (py-y1)*dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const projX = x1 + t*dx, projY = y1 + t*dy;
+  return Math.sqrt((px-projX)**2 + (py-projY)**2);
+}
+
+function pointInPolygon(pt, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    if (((yi > pt.y) !== (yj > pt.y)) && (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Keyboard: Del key to delete selected zone or drawing points
+document.addEventListener('keydown', async (e) => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (STATE.editTarget.type === 'actual' && STATE.editTarget.id) {
+      await fetch(`/actual-pours/${STATE.editTarget.id}`, { method: 'DELETE' });
+      if (STATE.selectedZone) await loadActualPoursInline(STATE.selectedZone.id);
+      STATE.editingActual = false;
+      STATE.editTarget = { type: 'zone', id: STATE.selectedZone?.id || null };
+      showToast('선택 타설 기록 삭제됨', 'success');
+    } else if (STATE.selectedZone) {
+      const zoneId = STATE.selectedZone.id;
+      const name = STATE.selectedZone.zone_name;
+      await fetch(`/zones/${zoneId}`, { method: 'DELETE' });
+      delete actualPoursCache[zoneId];
+      dirtyZoneOutlines.delete(zoneId);
+      actualPours = [];
+      STATE.selectedZone = null;
+      STATE.editingActual = false;
+      STATE.editTarget = { type: 'zone', id: null };
+      selectedActualPourId = null;
+      STATE.drawingPoints = [];
+      loadZones();
+      draw2D();
+      showToast(`"${name}" 구역 삭제됨`, 'success');
+    } else if (STATE.drawingPoints.length > 0) {
+      STATE.drawingPoints = [];
+      STATE.isDrawing = false;
+      draw2D();
+      showToast('그리기 폴리라인 삭제됨', 'success');
+    }
+  }
+  // Esc: 선택 해제
+  if (e.key === 'Escape') {
+    STATE.selectedZone = null;
+    STATE.editingActual = false;
+    STATE.editTarget = { type: 'zone', id: null };
+    selectedActualPourId = null;
+    STATE.drawingPoints = [];
+    STATE.isDrawing = false;
+    clearZone3DHighlight();
+    renderZoneList();
+    draw2D();
+  }
+});
+
+canvas2d.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (STATE.tool === 'draw') {
+    STATE.drawingPoints = [];
+    STATE.isDrawing = false;
+    draw2D();
+  }
+});
+
+canvas2d.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  view2d.scale *= factor;
+  view2d.scale = Math.max(0.001, Math.min(100, view2d.scale));
+  document.getElementById('status-zoom').textContent = `줌: ${Math.round(view2d.scale * 100)}%`;
+  draw2D();
+});
+
+// ===================== TOUCH EVENTS (2D Canvas) =====================
+const TOUCH_LONG_PRESS_MS = 550;
+let touchState = { lastDist: 0, lastCenter: null, touching: false, startTime: 0, startPos: null, moved: false };
+
+canvas2d.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    const dx = e.touches[1].clientX - e.touches[0].clientX;
+    const dy = e.touches[1].clientY - e.touches[0].clientY;
+    touchState.lastDist = Math.sqrt(dx*dx + dy*dy);
+    touchState.lastCenter = {
+      x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+    };
+  } else if (e.touches.length === 1) {
+    const rect = canvas2d.getBoundingClientRect();
+    const tx = e.touches[0].clientX - rect.left;
+    const ty = e.touches[0].clientY - rect.top;
+    touchState.touching = true;
+    touchState.startTime = Date.now();
+    touchState.startPos = { x: tx, y: ty };
+    touchState.lastCenter = { x: tx, y: ty };
+    touchState.moved = false;
+
+    if (STATE.tool === 'select' && STATE.drawingPoints.length > 0) {
+      for (let i = 0; i < STATE.drawingPoints.length; i++) {
+        const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
+        if (Math.sqrt((p.x-tx)**2 + (p.y-ty)**2) <= VERTEX_HIT_RADIUS * 1.5) {
+          STATE.draggingVertex = i;
+          return;
+        }
+      }
+    }
+  }
+}, { passive: false });
+
+canvas2d.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    const dx = e.touches[1].clientX - e.touches[0].clientX;
+    const dy = e.touches[1].clientY - e.touches[0].clientY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (touchState.lastDist > 0) {
+      const scale = dist / touchState.lastDist;
+      view2d.scale *= scale;
+      view2d.scale = Math.max(0.001, Math.min(100, view2d.scale));
+    }
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    if (touchState.lastCenter) {
+      view2d.cx -= (cx - touchState.lastCenter.x) / view2d.scale;
+      view2d.cy += (cy - touchState.lastCenter.y) / view2d.scale;
+    }
+    touchState.lastDist = dist;
+    touchState.lastCenter = { x: cx, y: cy };
+    draw2D();
+  } else if (e.touches.length === 1) {
+    const rect = canvas2d.getBoundingClientRect();
+    const tx = e.touches[0].clientX - rect.left;
+    const ty = e.touches[0].clientY - rect.top;
+    if (touchState.startPos) {
+      const moveDist = Math.sqrt((tx - touchState.startPos.x)**2 + (ty - touchState.startPos.y)**2);
+      if (moveDist > 8) touchState.moved = true;
+    }
+
+    if (STATE.draggingVertex !== null) {
+      const w = screenToWorld(tx, ty);
+      if (canPlaceDrawingPoint(w)) {
+        STATE.drawingPoints[STATE.draggingVertex] = w;
+      }
+      draw2D();
+      return;
+    }
+    if (touchState.lastCenter) {
+      const ddx = tx - touchState.lastCenter.x;
+      const ddy = ty - touchState.lastCenter.y;
+      view2d.cx -= ddx / view2d.scale;
+      view2d.cy += ddy / view2d.scale;
+    }
+    touchState.lastCenter = { x: tx, y: ty };
+    draw2D();
+  }
+}, { passive: false });
+
+canvas2d.addEventListener('touchend', async e => {
+  const elapsed = Date.now() - touchState.startTime;
+  const isLongPress = e.touches.length === 0 && touchState.touching && touchState.startPos && !touchState.moved && elapsed >= TOUCH_LONG_PRESS_MS;
+  if (isLongPress && STATE.drawingPoints.length >= 2) {
+    const handled = await handlePolylineEditGesture(touchState.startPos.x, touchState.startPos.y, {
+      persist: STATE.tool === 'select',
+      allowBelow3: STATE.tool === 'draw',
+      radius: VERTEX_HIT_RADIUS * 1.5
+    });
+    STATE.draggingVertex = null;
+    touchState.touching = false;
+    touchState.lastDist = 0;
+    touchState.lastCenter = null;
+    touchState.moved = false;
+    if (handled) return;
+  }
+
+  if (STATE.draggingVertex !== null && STATE.drawingPoints.length >= 3) {
+    await persistEditingPolygon();
+  }
+  STATE.draggingVertex = null;
+
+  if (e.touches.length === 0 && touchState.touching) {
+    if (!touchState.moved && elapsed < 300 && touchState.startPos) {
+      const rect = canvas2d.getBoundingClientRect();
+      const tx = touchState.startPos.x;
+      const ty = touchState.startPos.y;
+      const w = screenToWorld(tx, ty);
+
+      if (STATE.tool === 'draw') {
+        const hitIdx = findDrawingVertexAt(tx, ty, VERTEX_HIT_RADIUS * 1.5);
+        if (hitIdx >= 0) return;
+        if (!canPlaceDrawingPoint(w)) {
+          showToast('타설 폴리라인은 계획 구역 안에만 그릴 수 있습니다', 'error');
+          return;
+        }
+        STATE.drawingPoints.push(w);
+        STATE.isDrawing = true;
+        refreshActualPourDrawingUi();
+        updateNewZoneButton();
+        draw2D();
+      } else if (STATE.tool === 'select') {
+        if (STATE.selectedZone) {
+          const pours = getZoneActualPours(STATE.selectedZone.id);
+          for (const ap of pours) {
+            if (ap.polygon && ap.polygon.length >= 3 && pointInPolygon(w, ap.polygon)) {
+              STATE.editingActual = true;
+              STATE.editTarget = { type: 'actual', id: ap.id };
+              selectedActualPourId = ap.id;
+              STATE.drawingPoints = ap.polygon.map(p => ({x:p.x, y:p.y}));
+              draw2D();
+              showToast(`"${ap.pour_label}" 선택`, 'success');
+              return;
+            }
+          }
+        }
+        for (const z of STATE.zones) {
+          if (z.polygon && z.polygon.length >= 3 && pointInPolygon(w, z.polygon)) {
+            STATE.selectedZone = z;
+            STATE.editingActual = false;
+            STATE.editTarget = { type: 'zone', id: z.id };
+            selectedActualPourId = null;
+            STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
+            selectZoneAndShowMesh(z);
+            draw2D();
+            showToast(`"${z.zone_name}" 선택됨`, 'success');
+            break;
+          }
+        }
+      }
+    }
+    touchState.touching = false;
+  }
+  touchState.lastDist = 0;
+  touchState.lastCenter = null;
+  touchState.moved = false;
+});
+
+// Tool buttons
+document.querySelectorAll('#draw-tools .tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setActiveTool(btn.dataset.tool);
+  });
+});
+
+// ===================== 3D VIEW =====================
+let scene3d, camera3d, renderer3d, controls3d, modelGroup, intersectGroup;
+
+function init3D() {
+  const container = document.getElementById('view3d-container');
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  scene3d = new THREE.Scene();
+  scene3d.background = new THREE.Color(0x0f1520);
+
+  camera3d = new THREE.PerspectiveCamera(60, w/h, 0.1, 1000000);
+  camera3d.up.set(0, 0, 1);  // Z-up (라이노와 동일)
+  camera3d.position.set(50000, -50000, 30000);
+
+  renderer3d = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
+  renderer3d.setSize(w, h);
+  renderer3d.setPixelRatio(window.devicePixelRatio);
+
+  controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+  controls3d.enableDamping = true;
+  controls3d.dampingFactor = 0.1;
+  controls3d.screenSpacePanning = true;
+  controls3d.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+  scene3d.add(ambient);
+  const dir1 = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir1.position.set(1, 1, 1);
+  scene3d.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0x8888ff, 0.3);
+  dir2.position.set(-1, -0.5, 0.5);
+  scene3d.add(dir2);
+
+  // Axis helper (X=red, Y=green, Z=blue)
+  const axisHelper = new THREE.AxesHelper(5000);
+  scene3d.add(axisHelper);
+
+  modelGroup = new THREE.Group();
+  intersectGroup = new THREE.Group();
+  scene3d.add(modelGroup);
+  scene3d.add(intersectGroup);
+
+  animate3d();
+}
+
+function animate3d() {
+  requestAnimationFrame(animate3d);
+  controls3d.update();
+  renderer3d.render(scene3d, camera3d);
+}
+
+function render3DModel(data) {
+  while (modelGroup.children.length) modelGroup.remove(modelGroup.children[0]);
+
+  if (!data.objects || data.objects.length === 0) return;
+
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x94a3b8, transparent: true, opacity: 0.25,
+    side: THREE.DoubleSide, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2
+  });
+
+  let allMin = [Infinity, Infinity, Infinity];
+  let allMax = [-Infinity, -Infinity, -Infinity];
+
+  data.objects.forEach(obj => {
+    const geom = new THREE.BufferGeometry();
+    const verts = new Float32Array(obj.vertices.flat());
+    geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+
+    const indices = [];
+    obj.faces.forEach(f => { indices.push(f[0], f[1], f[2]); });
+    geom.setIndex(indices);
+
+    if (obj.normals && obj.normals.length === obj.vertices.length) {
+      const norms = new Float32Array(obj.normals.flat());
+      geom.setAttribute('normal', new THREE.BufferAttribute(norms, 3));
+    } else {
+      geom.computeVertexNormals();
+    }
+
+    const mesh = new THREE.Mesh(geom, material);
+    modelGroup.add(mesh);
+
+    obj.vertices.forEach(v => {
+      allMin[0] = Math.min(allMin[0], v[0]);
+      allMin[1] = Math.min(allMin[1], v[1]);
+      allMin[2] = Math.min(allMin[2], v[2]);
+      allMax[0] = Math.max(allMax[0], v[0]);
+      allMax[1] = Math.max(allMax[1], v[1]);
+      allMax[2] = Math.max(allMax[2], v[2]);
+    });
+  });
+
+  // Z-up 카메라 위치 설정 (라이노와 동일한 뷰)
+  const center = new THREE.Vector3(
+    (allMin[0]+allMax[0])/2, (allMin[1]+allMax[1])/2, (allMin[2]+allMax[2])/2
+  );
+  const sizeX = allMax[0]-allMin[0];
+  const sizeY = allMax[1]-allMin[1];
+  const sizeZ = allMax[2]-allMin[2];
+  const maxSize = Math.max(sizeX, sizeY, sizeZ);
+
+  camera3d.position.set(center.x + maxSize*0.7, center.y - maxSize*0.7, center.z + maxSize*0.5);
+  controls3d.target.copy(center);
+  controls3d.update();
+}
+
+function renderZonesOn2D() { draw2D(); }
+
+async function selectZoneAndShowMesh(zone) {
+  STATE.editingActual = false;
+  STATE.editTarget = { type: 'zone', id: zone?.id || null };
+  selectedActualPourId = null;
+  highlightZone3D(zone);
+  if (zone && zone.has_intersection_mesh) {
+    try {
+      const res = await fetch(`/zones/${zone.id}/intersection-mesh`);
+      const data = await res.json();
+      if (data.mesh && data.mesh.length > 0) {
+        renderIntersectionMesh(data.mesh);
+      }
+    } catch(e) { console.warn('교집합 메시 로드 실패:', e); }
+  }
+  // 실제 타설 기록도 로드
+  if (zone) {
+    try {
+      const res = await fetch(`/actual-pours/${zone.id}`);
+      if (res.ok) { actualPours = await res.json(); }
+      else { actualPours = []; }
+    } catch(e) { actualPours = []; }
+    actualPoursCache[zone.id] = actualPours;
+    draw2D();
+  }
+}
+
+function highlightZone3D(zone) {
+  while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
+  if (!zone || !zone.polygon || zone.polygon.length < 3) return;
+
+  const bbox = previewData?.bbox;
+  const zMin = bbox ? bbox.min.z : 0;
+  const zMax = bbox ? bbox.max.z : 3000;
+
+  // 커터 범위를 와이어프레임으로만 표시 (솔리드 아님)
+  const shape = new THREE.Shape();
+  zone.polygon.forEach((pt, i) => {
+    if (i === 0) shape.moveTo(pt.x, pt.y); else shape.lineTo(pt.x, pt.y);
+  });
+
+  const height = Math.abs(zMax - zMin) || 3000;
+  const extrudeSettings = { depth: height, bevelEnabled: false };
+  const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  geom.translate(0, 0, zMin);
+
+  // 와이어프레임 엣지만 표시 (주황색 점선)
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 1, transparent: true, opacity: 0.6 });
+  const edgeGeom = new THREE.EdgesGeometry(geom);
+  const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+  intersectGroup.add(edgeLine);
+
+  // 원본 모델을 회색 반투명으로 (z-fighting 방지)
+  modelGroup.children.forEach(child => {
+    if (child.material) {
+      child.material.color.set(0x666666);
+      child.material.opacity = 0.08;
+      child.material.transparent = true;
+      child.material.depthWrite = false;
+      child.material.polygonOffset = true;
+      child.material.polygonOffsetFactor = 4;
+      child.material.polygonOffsetUnits = 4;
+      child.material.needsUpdate = true;
+      child.renderOrder = 1;
+    }
+  });
+}
+
+function renderIntersectionMesh(meshData) {
+  // 기존 교집합 메시 제거 (와이어프레임 유지)
+  const toRemove = [];
+  intersectGroup.children.forEach(child => {
+    if (child.userData && child.userData.isIntersection) toRemove.push(child);
+  });
+  toRemove.forEach(c => intersectGroup.remove(c));
+
+  if (!meshData || meshData.length === 0) return;
+
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x2196f3, transparent: false, opacity: 1,
+    side: THREE.DoubleSide, shininess: 90,
+    polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8,
+    depthTest: true, depthWrite: true
+  });
+  const edgeMaterial = new THREE.LineBasicMaterial({
+    color: 0x7dd3fc, transparent: true, opacity: 0.45,
+    depthTest: true, depthWrite: false
+  });
+
+  meshData.forEach(obj => {
+    const geom = new THREE.BufferGeometry();
+    const verts = new Float32Array(obj.vertices.flat());
+    geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+
+    const indices = [];
+    obj.faces.forEach(f => { indices.push(f[0], f[1], f[2]); });
+    geom.setIndex(indices);
+    geom.computeVertexNormals();
+
+    const mesh = new THREE.Mesh(geom, material);
+    mesh.renderOrder = 10;
+    mesh.userData = { isIntersection: true };
+    intersectGroup.add(mesh);
+
+    const edgeLine = new THREE.LineSegments(new THREE.EdgesGeometry(geom), edgeMaterial);
+    edgeLine.renderOrder = 11;
+    edgeLine.userData = { isIntersection: true };
+    intersectGroup.add(edgeLine);
+  });
+
+  // 원본 모델을 회색 반투명으로 (z-fighting 방지)
+  modelGroup.children.forEach(child => {
+    if (child.material) {
+      child.material.color.set(0x666666);
+      child.material.opacity = 0.08;
+      child.material.transparent = true;
+      child.material.depthWrite = false;
+      child.material.polygonOffset = true;
+      child.material.polygonOffsetFactor = 4;
+      child.material.polygonOffsetUnits = 4;
+      child.material.needsUpdate = true;
+      child.renderOrder = 1;
+    }
+  });
+}
+
+function clearZone3DHighlight() {
+  while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
+  modelGroup.children.forEach(child => {
+    if (child.material) {
+      child.material.color.set(0x90a4ae);
+      child.material.opacity = 0.25;
+      child.material.transparent = true;
+      child.material.depthWrite = false;
+      child.material.polygonOffset = true;
+      child.material.polygonOffsetFactor = 2;
+      child.material.polygonOffsetUnits = 2;
+      child.material.needsUpdate = true;
+      child.renderOrder = 0;
+    }
+  });
+}
+
+// ===================== CALCULATION WITH PROGRESS =====================
+function waitForPaint() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+function showCalcOverlay(title, badge, message = '준비 중...', progress = 0) {
+  const overlay = document.createElement('div');
+  overlay.className = 'calc-overlay';
+  overlay.innerHTML = `<div class="calc-progress">
+    <h3>${title}</h3>
+    <div class="engine-badge">${badge}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+    <div class="status-msg">${message}</div>
+    <div class="elapsed">경과: 0초</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const progressEl = overlay.querySelector('.progress-fill');
+  const messageEl = overlay.querySelector('.status-msg');
+  const elapsedEl = overlay.querySelector('.elapsed');
+  return {
+    el: overlay,
+    setProgress(nextProgress, nextMessage, elapsedText) {
+      progressEl.style.width = `${nextProgress}%`;
+      if (nextMessage !== undefined) messageEl.textContent = nextMessage;
+      if (elapsedText !== undefined) elapsedEl.textContent = elapsedText;
+    },
+    remove() {
+      overlay.remove();
+    }
+  };
+}
+
+async function saveZonePolygon(zoneId, polygon) {
+  try {
+    await fetch(`/zones/${zoneId}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ polygon: polygon })
+    });
+  } catch(e) { console.warn('폴리곤 저장 실패:', e); }
+}
+
+async function saveActualPourPolygon(pourId, polygon) {
+  try {
+    await fetch(`/actual-pours/${pourId}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ polygon: polygon })
+    });
+  } catch(e) { console.warn('타설 폴리곤 저장 실패:', e); }
+}
+
+async function persistEditingPolygon() {
+  if (STATE.drawingPoints.length < 3) return;
+  const polygon = STATE.drawingPoints.map(p => ({x:p.x, y:p.y}));
+  if (STATE.editTarget.type === 'zone' && STATE.selectedZone) {
+    STATE.selectedZone.polygon = polygon;
+    await saveZonePolygon(STATE.selectedZone.id, polygon);
+    markZoneOutlineDirty(STATE.selectedZone.id);
+    return;
+  }
+  if (STATE.editTarget.type === 'actual' && STATE.editTarget.id) {
+    const ap = actualPours.find(p => p.id === STATE.editTarget.id);
+    if (ap) ap.polygon = polygon;
+    await saveActualPourPolygon(STATE.editTarget.id, polygon);
+  }
+}
+
+async function runCalculation(zoneId) {
+  const calcOverlay = showCalcOverlay('체적 산출 준비 중', '요청 접수', '버튼 입력 확인됨. 계산 준비 중...', 3);
+  await waitForPaint();
+
+  // 선택된 구역의 폴리곤이 수정되었으면 먼저 저장
+  if (STATE.selectedZone && STATE.selectedZone.id === zoneId && STATE.editTarget.type === 'zone' && STATE.drawingPoints.length >= 3) {
+    calcOverlay.setProgress(6, '수정된 폴리라인 저장 중...');
+    const updatedPolygon = STATE.drawingPoints.map(p => ({x:p.x, y:p.y}));
+    await saveZonePolygon(zoneId, updatedPolygon);
+    STATE.selectedZone.polygon = updatedPolygon;
+  }
+
+  calcOverlay.setProgress(8, '계산 작업 등록 중...');
+  let data;
+  try {
+    const res = await fetch('/calculate', { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project_name:STATE.projectName, zone_id:zoneId})});
+    data = await res.json();
+  } catch(e) {
+    calcOverlay.remove();
+    showToast('계산 시작 실패', 'error');
+    return;
+  }
+  if (!data.job_id) {
+    calcOverlay.remove();
+    showToast('계산 시작 실패', 'error');
+    return;
+  }
+
+  calcOverlay.el.querySelector('h3').textContent = '체적 산출 중';
+  calcOverlay.el.querySelector('.engine-badge').textContent = data.engine || 'Rhino 8';
+  calcOverlay.setProgress(10, '계산 작업 시작 중...', '경과: 0초');
+
+  const jobId = data.job_id;
+  let completed = false;
+
+  while (!completed) {
+    await new Promise(r => setTimeout(r, 500));
+    try {
+      const sr = await fetch(`/calculate/status/${jobId}`);
+      const s = await sr.json();
+      calcOverlay.setProgress(s.progress, s.message, `경과: ${s.elapsed}초`);
+
+      if (s.status === 'completed') {
+        completed = true;
+        await new Promise(r => setTimeout(r, 800));
+        calcOverlay.remove();
+        const r = s.result;
+        dirtyZoneOutlines.delete(zoneId);
+        updateMobileZoneActions();
+        showToast(`체적: ${r.volume.toFixed(2)} m³ → 레미콘 ${Math.ceil(r.volume/6)}대 (${r.elapsed_time}초)`, 'success');
+        // 교집합 메시가 있으면 3D 뷰어에 렌더링
+        if (r.intersection_mesh && r.intersection_mesh.length > 0) {
+          renderIntersectionMesh(r.intersection_mesh);
+        }
+      } else if (s.status === 'error') {
+        completed = true;
+        calcOverlay.remove();
+        showToast(`계산 오류: ${s.message}`, 'error');
+      }
+    } catch(e) {
+      completed = true;
+      calcOverlay.remove();
+      showToast('상태 조회 실패', 'error');
+    }
+  }
+}
+
+// ===================== UTILITY =====================
+function updateStatusBar() {
+  document.getElementById('status-snap').textContent = `스냅: ${Math.round(STATE.snapSize)}mm`;
+}
+
+function showToast(msg, type='success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ===================== RESIZE =====================
+function handleResize() {
+  resize2D();
+  const cont = document.getElementById('view3d-container');
+  if (renderer3d) {
+    renderer3d.setSize(cont.clientWidth, cont.clientHeight);
+    camera3d.aspect = cont.clientWidth / cont.clientHeight;
+    camera3d.updateProjectionMatrix();
+  }
+}
+window.addEventListener('resize', handleResize);
+
+// ===================== INIT =====================
+async function loadProjectList() {
+  try {
+    const res = await fetch('/projects');
+    if (res.ok) {
+      const projects = await res.json();
+      const sel = document.getElementById('project-select');
+      sel.innerHTML = '';
+      if (projects.length === 0) {
+        sel.innerHTML = '<option value="">프로젝트 없음</option>';
+      } else {
+        projects.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.project_name;
+          opt.textContent = p.project_name;
+          if (p.project_name === STATE.projectName) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        if (!STATE.projectName && projects.length > 0) {
+          STATE.projectName = projects[0].project_name;
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+document.getElementById('project-select').addEventListener('change', (e) => {
+  STATE.projectName = e.target.value;
+  STATE.floors = [];
+  STATE.uploadedFloors = {};
+  STATE.activeFloor = '';
+  STATE.zones = [];
+  STATE.selectedZone = null;
+  dirtyZoneOutlines.clear();
+  STATE.editingActual = false;
+  STATE.editTarget = { type: 'zone', id: null };
+  selectedActualPourId = null;
+  actualPours = [];
+  for (const k in actualPoursCache) delete actualPoursCache[k];
+  STATE.drawingPoints = [];
+  renderFloorChips();
+  loadProjectData();
+});
+
+document.getElementById('btn-new-project').addEventListener('click', async () => {
+  const name = prompt('새 프로젝트 이름을 입력하세요');
+  if (!name || !name.trim()) return;
+  const fd = new FormData();
+  fd.append('project_name', name.trim());
+  await fetch('/projects', { method: 'POST', body: fd });
+  STATE.projectName = name.trim();
+  STATE.floors = [];
+  STATE.uploadedFloors = {};
+  STATE.activeFloor = '';
+  await loadProjectList();
+  loadProjectData();
+  showToast(`프로젝트 "${name.trim()}" 생성됨`, 'success');
+});
+
+async function loadProjectData() {
+  STATE.floors = [];
+  STATE.uploadedFloors = {};
+  try {
+    const res = await fetch(`/floors/${encodeURIComponent(STATE.projectName)}`);
+    if (res.ok) {
+      const floors = await res.json();
+      floors.forEach(f => { STATE.uploadedFloors[f.floor_label] = f; });
+      STATE.floors = floors.map(f => f.floor_label);
+      sortFloors();
+    }
+  } catch(e) {}
+  if (!STATE.floors.includes(STATE.activeFloor)) {
+    STATE.activeFloor = STATE.floors[0] || '';
+  }
+  renderFloorChips();
+  if (STATE.uploadedFloors[STATE.activeFloor]) {
+    loadFloorData();
+  } else {
+    previewData = null;
+    STATE.zones = [];
+    STATE.selectedZone = null;
+    dirtyZoneOutlines.clear();
+    STATE.drawingPoints = [];
+    actualPours = [];
+    for (const k in actualPoursCache) delete actualPoursCache[k];
+    renderZoneList();
+    draw2D();
+    while (modelGroup.children.length) modelGroup.remove(modelGroup.children[0]);
+    while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
+  }
+  if (STATE.activeFloor) loadZones();
+  loadSummary();
+}
+
+async function init() {
+  renderFloorChips();
+  resize2D();
+  init3D();
+
+  try {
+    const ei = await fetch('/engine-info');
+    if (ei.ok) {
+      const info = await ei.json();
+      document.getElementById('status-engine').textContent = info.engine;
+      document.getElementById('status-engine').style.color = info.rhinoinside ? 'var(--success)' : 'var(--warning)';
+    }
+  } catch(e) {}
+
+  await loadProjectList();
+  if (STATE.projectName) {
+    loadProjectData();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
