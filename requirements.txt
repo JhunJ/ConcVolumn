@@ -4,3 +4,4 @@ rhino3dm>=8.9.0
 compute-rhino3d>=0.14.0
 python-multipart>=0.0.9
 aiofiles>=23.0.0
+Pillow>=10.0.0

@@ -5,6 +5,7 @@ __pycache__/
 *.db-wal
 uploads/
 Sample/
+preview_cache/
 *.3dm
 .env
 .venv/

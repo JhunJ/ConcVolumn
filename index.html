@@ -26,13 +26,33 @@
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height:100vh; overflow:hidden; display:flex; }
 
 /* Sidebar */
-#sidebar { width: var(--sidebar-w); background: var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
-#sidebar h1 { font-size:14px; padding:16px; border-bottom:1px solid var(--border); background: linear-gradient(135deg, var(--primary), #8b5cf6); color:#fff; }
-.section { padding:12px 16px; border-bottom:1px solid var(--border); }
+#sidebar { width: var(--sidebar-w); background: var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; height:100vh; min-height:0; flex-shrink:0; }
+#sidebar h1 { font-size:14px; padding:16px; border-bottom:1px solid var(--border); background: linear-gradient(135deg, var(--primary), #8b5cf6); color:#fff; flex-shrink:0; }
+.section { padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
 .section-title { font-size:11px; text-transform:uppercase; color:var(--text2); letter-spacing:0.5px; margin-bottom:8px; font-weight:600; }
 .section-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .section-header .section-title { margin-bottom:0; }
 .section-header .btn { white-space:nowrap; flex-shrink:0; }
+.section-header-toggle { cursor:pointer; user-select:none; margin-bottom:0; }
+.section-header-toggle:hover .section-title-flex { color:var(--text); }
+.section-collapsible .section-body { margin-top:8px; }
+.section-collapsible.collapsed .section-body { display:none; }
+.section-collapsible.collapsed .section-header-toggle { margin-bottom:0; }
+.section-toggle {
+  background:none; border:none; color:var(--text2); cursor:pointer; font-size:9px;
+  padding:0; width:16px; height:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  transition:transform .15s, color .15s;
+}
+.section-toggle:hover { color:var(--text); }
+.section-collapsible:not(.collapsed) .section-toggle { transform:rotate(90deg); }
+.section-title-flex { flex:1; min-width:0; }
+.section-zone-list {
+  flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden;
+  border-bottom:none; padding-bottom:12px;
+}
+.section-zone-list .section-header { flex-shrink:0; margin-bottom:8px; }
+#zone-list { flex:1; min-height:0; overflow-y:auto; padding-right:2px; }
+#strength-zone-list { max-height:140px; overflow-y:auto; }
 
 /* Form elements */
 input[type=text], input[type=date], input[type=number], select, textarea {
@@ -78,10 +98,25 @@ textarea { resize:vertical; min-height:40px; }
 /* Viewport area */
 #viewport-area { flex:1; display:flex; flex-direction:column; }
 #viewport-split { flex:1; display:flex; }
-#view2d-container, #view3d-container { flex:1; position:relative; overflow:hidden; border-right:1px solid var(--border); }
-#view3d-container { border-right:none; }
+#view2d-container, #view3d-container { flex:1; position:relative; overflow:hidden; min-width:120px; min-height:120px; }
+#view2d-container { border-right:none; }
+#viewport-resizer { width:6px; flex-shrink:0; cursor:col-resize; background:var(--border); position:relative; z-index:20; transition:background .15s; }
+#viewport-resizer:hover, #viewport-resizer.dragging { background:var(--primary); }
+#draw-floating-actions { position:absolute; top:12px; right:12px; display:none; align-items:center; gap:8px; z-index:15; background:rgba(15,23,42,0.92); border:1px solid var(--border); border-radius:8px; padding:8px 12px; box-shadow:0 4px 16px rgba(0,0,0,0.35); }
+#draw-floating-actions.visible { display:flex; }
+#draw-status-text { font-size:11px; color:var(--text2); white-space:nowrap; }
+#draw-floating-actions .btn { margin:0; padding:6px 12px; font-size:11px; }
 .view-label { position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); padding:4px 10px; border-radius:4px; font-size:10px; font-weight:600; z-index:10; pointer-events:none; }
-#canvas2d, #canvas3d { width:100%; height:100%; display:block; }
+#canvas2d, #canvas3d { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+#canvas3d:active { cursor:grabbing; }
+#view3d-legend { position:absolute; bottom:12px; left:8px; z-index:10; pointer-events:none; display:flex; flex-direction:column; gap:3px; font-size:9px; color:var(--text2); background:rgba(15,23,42,0.75); padding:6px 8px; border-radius:6px; border:1px solid var(--border); }
+#view3d-legend span { display:flex; align-items:center; gap:5px; }
+.view-loading { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(10,14,26,0.78); z-index:12; pointer-events:none; }
+.view-loading.visible { display:flex; }
+.view-loading .spinner { width:30px; height:30px; border:3px solid rgba(148,163,184,0.22); border-top-color:var(--primary); border-radius:50%; animation:view-spin 0.7s linear infinite; }
+.view-loading .load-text { font-size:11px; color:var(--text2); }
+.view-loading .load-sub { font-size:9px; color:var(--text2); opacity:0.75; }
+@keyframes view-spin { to { transform:rotate(360deg); } }
 
 /* Status bar */
 #statusbar { height:28px; background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 16px; font-size:11px; color:var(--text2); gap:20px; }
@@ -118,6 +153,21 @@ textarea { resize:vertical; min-height:40px; }
 .ap-name { font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ap-actions { display:flex; gap:3px; grid-column:3; grid-row:1; }
 .ap-info { grid-column:2 / 4; font-size:10px; color:var(--text2); line-height:1.25; word-break:keep-all; }
+
+/* Strength / breakdown */
+.strength-inputs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:6px; }
+.strength-inputs label { font-size:9px; color:var(--text2); display:block; }
+.strength-inputs input { margin-bottom:0; padding:5px; font-size:11px; }
+.breakdown-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.breakdown-chip { font-size:9px; padding:2px 6px; border-radius:10px; background:var(--surface); border:1px solid var(--border); }
+.breakdown-chip.h { border-color:#06b6d4; color:#06b6d4; }
+.breakdown-chip.v { border-color:#a855f7; color:#a855f7; }
+.strength-zone-item { padding:6px 8px; background:var(--surface2); border-radius:6px; margin-bottom:4px; font-size:11px; border-left:3px solid #ef4444; }
+.member-row { display:grid; grid-template-columns:1fr auto auto; gap:4px; align-items:center; padding:4px 0; border-bottom:1px solid rgba(71,85,105,0.3); font-size:10px; }
+.member-row input { width:48px; padding:3px; margin:0; font-size:10px; }
+.legend-bar { display:flex; flex-wrap:wrap; gap:6px; padding:4px 0; font-size:9px; color:var(--text2); }
+.legend-dot { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:3px; }
+#member-panel { max-height:220px; overflow-y:auto; }
 
 /* Toast */
 .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:var(--radius); color:#fff; font-size:12px; z-index:9999; animation:fadeIn .3s; }
@@ -164,8 +214,9 @@ textarea { resize:vertical; min-height:40px; }
 /* Mobile responsive */
 @media (max-width: 768px) {
   body { flex-direction: column; overflow: auto; height: auto; min-height:100vh; }
-  #sidebar { width:100%; max-height:none; border-right:none; border-bottom:2px solid var(--border); display:none; }
-  #sidebar.open { display:flex; }
+  #sidebar { width:100%; max-height:none; height:auto; border-right:none; border-bottom:2px solid var(--border); display:none; overflow:hidden; }
+  #sidebar.open { display:flex; max-height:min(85vh, 720px); }
+  .section-zone-list { min-height:180px; flex:1; }
   #sidebar h1 { font-size:13px; padding:12px; }
   .section { padding:10px 12px; }
   #sidebar-toggle { display:flex; align-items:center; justify-content:center; }
@@ -175,7 +226,8 @@ textarea { resize:vertical; min-height:40px; }
 
   #viewport-area { flex:none; width:100%; height:auto; min-height:60vh; display:flex; flex-direction:column; }
   #viewport-split { flex-direction:column; min-height:70vh; }
-  #view2d-container, #view3d-container { flex:none; height:40vh; min-height:280px; border-right:none; border-bottom:1px solid var(--border); }
+  #viewport-resizer { width:100%; height:6px; cursor:row-resize; }
+  #view2d-container, #view3d-container { flex:none !important; width:100% !important; height:40vh; min-height:280px; border-right:none; border-bottom:1px solid var(--border); }
   #view3d-container { border-bottom:none; }
 
   #statusbar { height:auto; padding:6px 10px; flex-wrap:wrap; gap:8px; font-size:10px; }
@@ -227,17 +279,66 @@ textarea { resize:vertical; min-height:40px; }
     <button class="btn btn-primary btn-block btn-sm" id="btn-upload-floor">.3dm 업로드 / 층 추가</button>
   </div>
 
-  <div class="section">
-    <div class="section-title">요약</div>
-    <div class="summary-grid" id="summary-grid">
-      <div class="summary-card"><div class="num" id="sum-planned">0</div><div class="label">예정 구역</div></div>
-      <div class="summary-card"><div class="num" id="sum-completed">0</div><div class="label">완료 구역</div></div>
-      <div class="summary-card"><div class="num" id="sum-calc-vol">0</div><div class="label">산출 체적(m³)</div></div>
-      <div class="summary-card"><div class="num" id="sum-trucks">0</div><div class="label">레미콘 대수(6m³)</div></div>
+  <div class="section section-collapsible" data-section="summary">
+    <div class="section-header section-header-toggle">
+      <button type="button" class="section-toggle" aria-expanded="true" aria-label="접기">▶</button>
+      <div class="section-title section-title-flex">요약</div>
+    </div>
+    <div class="section-body">
+      <div class="summary-grid" id="summary-grid">
+        <div class="summary-card"><div class="num" id="sum-planned">0</div><div class="label">예정 구역</div></div>
+        <div class="summary-card"><div class="num" id="sum-completed">0</div><div class="label">완료 구역</div></div>
+        <div class="summary-card"><div class="num" id="sum-calc-vol">0</div><div class="label">산출 체적(m³)</div></div>
+        <div class="summary-card"><div class="num" id="sum-trucks">0</div><div class="label">레미콘 대수(6m³)</div></div>
+      </div>
     </div>
   </div>
 
-  <div class="section" style="flex:1;overflow-y:auto">
+  <div class="section section-collapsible collapsed" data-section="def-strength">
+    <div class="section-header section-header-toggle">
+      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
+      <div class="section-title section-title-flex">기본 강도 설정 (MPa)</div>
+    </div>
+    <div class="section-body">
+      <div style="font-size:9px;color:var(--text2);margin-bottom:6px">기둥·벽체·수평 기본값 — 프로젝트별로 직접 입력 후 저장</div>
+      <div class="strength-inputs">
+        <div><label>기둥</label><input type="number" id="def-str-col" placeholder="MPa" step="0.5" min="1"></div>
+        <div><label>벽체</label><input type="number" id="def-str-wall" placeholder="MPa" step="0.5" min="1"></div>
+        <div><label>수평</label><input type="number" id="def-str-h" placeholder="MPa" step="0.5" min="1"></div>
+      </div>
+      <button class="btn btn-sm btn-block" id="btn-save-strengths" style="background:var(--surface2);color:var(--text)">기본 강도 저장</button>
+    </div>
+  </div>
+
+  <div class="section section-collapsible collapsed" data-section="strength-zones">
+    <div class="section-header section-header-toggle">
+      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
+      <div class="section-title section-title-flex">추가 강도 구역</div>
+      <button class="btn btn-sm" id="btn-new-strength-zone" style="background:#ef4444;color:#fff">+ 선분 그리기</button>
+    </div>
+    <div class="section-body">
+      <div style="font-size:9px;color:var(--text2);margin-bottom:6px">2D 클릭으로 점 추가 · 목록 ✎ 또는 이름 클릭으로 윤곽 수정 · 우측 상단 [저장]</div>
+      <div id="strength-zone-list"></div>
+    </div>
+  </div>
+
+  <div class="section section-collapsible collapsed" data-section="members">
+    <div class="section-header section-header-toggle">
+      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
+      <div class="section-title section-title-flex">부재 목록</div>
+      <button class="btn btn-sm" id="btn-resync-members" style="background:var(--surface2);color:var(--text2)">↻</button>
+    </div>
+    <div class="section-body">
+      <div class="legend-bar" id="strength-legend">
+      <span><span class="legend-dot" style="background:rgba(6,182,212,0.15)"></span>수평(청록·연한선)</span>
+      <span><span class="legend-dot" style="background:rgba(59,130,246,0.6)"></span>벽체(파랑계열·강도별)</span>
+      <span><span class="legend-dot" style="background:rgba(168,85,247,0.6)"></span>기둥(보라계열·강도별)</span>
+      </div>
+      <div id="member-panel"></div>
+    </div>
+  </div>
+
+  <div class="section section-zone-list">
     <div class="section-header">
       <div class="section-title">구역 목록</div>
       <button class="btn btn-sm btn-primary" id="btn-new-zone">+ 새 구역</button>
@@ -268,17 +369,40 @@ textarea { resize:vertical; min-height:40px; }
 
 <div id="viewport-area">
   <div id="viewport-split">
-    <div id="view2d-container">
-      <div class="view-label">2D 평면뷰 (폴리라인 그리기)</div>
+    <div id="view2d-container" style="flex:1">
+      <div class="view-label">2D 평면뷰 (부재 외곽선)</div>
+      <div id="view2d-loading" class="view-loading">
+        <div class="spinner"></div>
+        <div class="load-text">2D 평면뷰 로딩 중...</div>
+        <div class="load-sub">먼저 완료되는 뷰부터 표시됩니다</div>
+      </div>
       <canvas id="canvas2d"></canvas>
+      <div id="draw-floating-actions">
+        <span id="draw-status-text">그리는 중...</span>
+        <button class="btn btn-success btn-sm" id="btn-finish-draw">✓ 저장</button>
+        <button class="btn btn-sm" id="btn-cancel-draw" style="background:var(--surface2);color:var(--text)">취소</button>
+      </div>
       <div id="draw-tools">
         <button class="tool-btn active" data-tool="select">선택</button>
         <button class="tool-btn" data-tool="pan">이동</button>
+        <button class="tool-btn" data-tool="draw-strength">강도구역</button>
       </div>
     </div>
-    <div id="view3d-container">
-      <div class="view-label">3D 뷰어</div>
+    <div id="viewport-resizer" title="드래그하여 2D/3D 크기 조절"></div>
+    <div id="view3d-container" style="flex:1">
+      <div class="view-label">3D 뷰어 · 좌클릭 회전 / 우클릭·휠 이동·줌</div>
+      <div id="view3d-loading" class="view-loading">
+        <div class="spinner"></div>
+        <div class="load-text">3D 모델 로딩 중...</div>
+        <div class="load-sub">먼저 완료되는 뷰부터 표시됩니다</div>
+      </div>
       <canvas id="canvas3d"></canvas>
+      <div id="view3d-legend">
+        <span><span class="legend-dot" style="background:rgba(34,211,238,0.25)"></span>수평(투명·아래 수직재 보임)</span>
+        <span><span class="legend-dot" style="background:#3b82f6"></span>벽체(파랑)</span>
+        <span><span class="legend-dot" style="background:#a855f7"></span>기둥(보라)</span>
+        <span><span class="legend-dot" style="background:#fbbf24"></span>타설구역 교집합</span>
+      </div>
     </div>
   </div>
   <div id="statusbar">
@@ -286,6 +410,7 @@ textarea { resize:vertical; min-height:40px; }
     <span class="status-item" id="status-snap">스냅: 1000mm</span>
     <span class="status-item" id="status-cursor">X: 0, Y: 0</span>
     <span class="status-item" id="status-mode">모드: 선택</span>
+    <span class="status-item" id="status-load" style="color:var(--primary)"></span>
     <span class="status-item" id="status-zoom">줌: 100%</span>
   </div>
 </div>
@@ -293,7 +418,7 @@ textarea { resize:vertical; min-height:40px; }
 <script>
 // ===================== STATE =====================
 const STATE = {
-  projectName: '안양 지하층',
+  projectName: '개편테스트',
   floors: [],
   uploadedFloors: {},
   activeFloor: '',
@@ -306,7 +431,23 @@ const STATE = {
   draggingVertex: null,
   editingActual: false,
   editTarget: { type: 'zone', id: null },
+  strengthZones: [],
+  floorMembers: [],
+  defaultStrengths: {},
+  drawingStrengthZone: false,
 };
+
+function strengthToColor(strength, orientation) {
+  if (strength == null || strength === '' || isNaN(strength)) return '#64748b';
+  const s = Math.round(Number(strength));
+  const hue = (s * 47 + (orientation === 'vertical' ? 30 : 0)) % 360;
+  return `hsl(${hue}, 68%, 52%)`;
+}
+
+function formatStrengthLabel(s) {
+  if (s == null || s === '미설정') return '미설정';
+  return `${s}MPa`;
+}
 
 function closeSidebarOnMobile() {
   if (window.innerWidth <= 768) {
@@ -317,6 +458,40 @@ function closeSidebarOnMobile() {
       if (tg) tg.textContent = '☰';
     }
   }
+}
+
+function initSidebarCollapsibles() {
+  document.querySelectorAll('.section-collapsible[data-section]').forEach(section => {
+    const key = section.dataset.section;
+    const stored = localStorage.getItem(`concast-sidebar-${key}`);
+    const toggleBtn = section.querySelector('.section-toggle');
+    if (stored === '1') {
+      section.classList.remove('collapsed');
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+    } else if (stored === '0') {
+      section.classList.add('collapsed');
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    const header = section.querySelector('.section-header-toggle');
+    if (!header) return;
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('button:not(.section-toggle)')) return;
+      if (e.target.closest('input, select, textarea, a')) return;
+      const collapsed = section.classList.toggle('collapsed');
+      localStorage.setItem(`concast-sidebar-${key}`, collapsed ? '0' : '1');
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    });
+  });
+}
+
+function expandSidebarSection(key) {
+  const section = document.querySelector(`.section-collapsible[data-section="${key}"]`);
+  if (!section) return;
+  section.classList.remove('collapsed');
+  localStorage.setItem(`concast-sidebar-${key}`, '1');
+  const toggleBtn = section.querySelector('.section-toggle');
+  if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
 }
 
 // ===================== FLOOR CHIPS =====================
@@ -343,8 +518,104 @@ function setActiveTool(tool) {
   document.querySelectorAll('#draw-tools .tool-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tool === tool);
   });
-  document.getElementById('status-mode').textContent = `모드: ${{'select':'선택','draw':'그리기','pan':'이동'}[tool]}`;
+  document.getElementById('status-mode').textContent = `모드: ${{'select':'선택','draw':'타설구역','draw-strength':'강도구역','pan':'이동'}[tool]}`;
+  if (tool !== 'draw-strength' && !(STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id)) {
+    STATE.drawingStrengthZone = false;
+  }
   updateNewZoneButton();
+  updateDrawFloatingActions();
+}
+
+function isTypingInForm() {
+  if (document.querySelector('.modal-overlay')) return true;
+  const el = document.activeElement;
+  if (!el || el === document.body || el === document.documentElement) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+function updateStrengthZoneButton() {
+  const btn = document.getElementById('btn-new-strength-zone');
+  if (!btn) return;
+  if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id) {
+    btn.textContent = STATE.drawingPoints.length >= 3 ? '✓ 윤곽 저장' : `편집 중 (${STATE.drawingPoints.length}점)`;
+    btn.title = '현재 윤곽·설정 저장';
+    return;
+  }
+  const drawing = STATE.tool === 'draw-strength' && STATE.isDrawing;
+  if (!drawing) {
+    btn.textContent = '+ 선분 그리기';
+    btn.title = '평면에 선분으로 강도 구역 그리기';
+    return;
+  }
+  if (STATE.drawingPoints.length >= 3) {
+    btn.textContent = '✓ 강도구역 저장';
+    btn.title = '현재 선분을 강도 구역으로 저장';
+  } else {
+    btn.textContent = `그리는 중 (${STATE.drawingPoints.length}/3)`;
+    btn.title = '2D 클릭으로 점 추가, 3점 이상 후 저장';
+  }
+}
+
+function cancelStrengthZoneEdit(reload = true) {
+  const wasEditId = STATE.editTarget.type === 'strength-zone' ? STATE.editTarget.id : null;
+  STATE.drawingPoints = [];
+  STATE.isDrawing = false;
+  STATE.drawingStrengthZone = false;
+  STATE.editTarget = { type: 'zone', id: null };
+  updateStrengthZoneButton();
+  updateDrawFloatingActions();
+  renderStrengthZoneList();
+  if (reload && wasEditId) loadStrengthZones();
+  else draw2D();
+}
+
+function startStrengthZoneEdit(sz) {
+  if (!sz?.polygon || sz.polygon.length < 3) {
+    showToast('윤곽 데이터가 없습니다', 'error');
+    return;
+  }
+  STATE.selectedZone = null;
+  STATE.editingActual = false;
+  selectedActualPourId = null;
+  clearZone3DHighlight();
+  STATE.editTarget = { type: 'strength-zone', id: sz.id };
+  STATE.drawingPoints = sz.polygon.map(p => ({ x: p.x, y: p.y }));
+  STATE.isDrawing = true;
+  STATE.drawingStrengthZone = true;
+  setActiveTool('select');
+  expandSidebarSection('strength-zones');
+  updateStrengthZoneButton();
+  updateDrawFloatingActions();
+  renderStrengthZoneList();
+  draw2D();
+  showToast(`"${sz.zone_name}" 윤곽 편집 — 꼭짓점 드래그·선분 더블클릭 → [저장]`, 'success');
+}
+
+function updateDrawFloatingActions() {
+  const bar = document.getElementById('draw-floating-actions');
+  const txt = document.getElementById('draw-status-text');
+  const saveBtn = document.getElementById('btn-finish-draw');
+  if (!bar || !txt || !saveBtn) return;
+
+  const isStrengthNew = STATE.tool === 'draw-strength'
+    && STATE.drawingStrengthZone
+    && STATE.isDrawing
+    && !STATE.editTarget.id
+    && STATE.drawingPoints.length > 0;
+  const isStrengthEdit = STATE.editTarget.type === 'strength-zone'
+    && STATE.editTarget.id
+    && STATE.drawingPoints.length > 0;
+  const isStrengthDrawing = isStrengthNew || isStrengthEdit;
+
+  bar.classList.toggle('visible', isStrengthDrawing);
+  if (!isStrengthDrawing) return;
+
+  const n = STATE.drawingPoints.length;
+  txt.textContent = `강도구역 ${n}점`;
+  saveBtn.textContent = '✓ 저장';
+  saveBtn.disabled = n < 3;
+  saveBtn.style.opacity = n >= 3 ? '1' : '0.45';
 }
 
 function updateNewZoneButton() {
@@ -363,6 +634,7 @@ function updateNewZoneButton() {
     btn.textContent = `그리는 중 (${STATE.drawingPoints.length}/3)`;
     btn.title = '최소 3점을 찍은 뒤 다시 누르면 구역 저장';
   }
+  updateStrengthZoneButton();
 }
 
 function updateFloorActionButtons() {
@@ -519,12 +791,110 @@ document.getElementById('floor-file').onchange = async (e) => {
 };
 
 // ===================== LOAD FLOOR DATA =====================
+let floorLoadSeq = 0;
+const previewCache = new Map();
+
+function previewCacheKey(pn, fl) {
+  return `${pn}::${fl}`;
+}
+
+function invalidatePreviewCache(pn, fl) {
+  if (fl) previewCache.delete(previewCacheKey(pn, fl));
+  else previewCache.clear();
+}
+
+function storePreviewCacheEntry(pn, fl, data, cacheAt) {
+  previewCache.set(previewCacheKey(pn, fl), {
+    data,
+    cacheAt: cacheAt || data?.cache_at || null,
+    savedAt: Date.now(),
+  });
+}
+
+function applyPreviewMeta(data) {
+  previewData = data;
+  if (data.bbox) {
+    const b = data.bbox;
+    view2d.cx = (b.min.x + b.max.x) / 2;
+    view2d.cy = (b.min.y + b.max.y) / 2;
+    const dx = b.max.x - b.min.x;
+    const dy = b.max.y - b.min.y;
+    const margin = 1.2;
+    view2d.scale = Math.min(view2d.width / (dx * margin), view2d.height / (dy * margin));
+  }
+  STATE.snapSize = data.snap_size || STATE.snapSize;
+}
+
+async function fetchPreviewPayload(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error('preview failed');
+  const cacheAt = res.headers.get('X-Preview-Cache-At');
+  if (res.headers.get('X-Preview-Gzip') === '1') {
+    const buf = await res.arrayBuffer();
+    const jsonStr = await new Response(
+      new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))
+    ).text();
+    return {
+      data: JSON.parse(jsonStr),
+      cacheHit: res.headers.get('X-Preview-Cache') === 'file',
+      cacheAt,
+    };
+  }
+  const data = await res.json();
+  return {
+    data,
+    cacheHit: res.headers.get('X-Preview-Cache') === 'file',
+    cacheBuilt: res.headers.get('X-Preview-Cache') === 'built',
+    cacheAt,
+  };
+}
+
+function ensurePreviewCachesBackground(pn) {
+  const missing = STATE.floors.filter(fl => {
+    const f = STATE.uploadedFloors[fl];
+    return f && !f.preview_cache_at;
+  });
+  if (!missing.length) return;
+  fetch(`/floors/${encodeURIComponent(pn)}/ensure-preview-cache`, { method: 'POST' })
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => {
+      if (!j?.warmed?.length) return;
+      const now = new Date().toISOString();
+      j.warmed.forEach(fl => {
+        if (STATE.uploadedFloors[fl]) STATE.uploadedFloors[fl].preview_cache_at = now;
+      });
+    })
+    .catch(() => {});
+}
+
+function setViewLoading(id, visible, text, subText) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('visible', !!visible);
+  if (text) {
+    const t = el.querySelector('.load-text');
+    if (t) t.textContent = text;
+  }
+  if (subText !== undefined) {
+    const s = el.querySelector('.load-sub');
+    if (s) s.textContent = subText;
+  }
+}
+
+function setStatusLoad(msg) {
+  const el = document.getElementById('status-load');
+  if (el) el.textContent = msg || '';
+}
+
 async function loadFloorData() {
   const pn = STATE.projectName;
   const fl = STATE.activeFloor;
   if (!fl || !STATE.uploadedFloors[fl]) {
+    setViewLoading('view2d-loading', false);
+    setViewLoading('view3d-loading', false);
+    setStatusLoad('');
     previewData = null;
-    meshCache = null;
+    invalidatePlanSegList();
     STATE.zones = [];
     STATE.selectedZone = null;
     dirtyZoneOutlines.clear();
@@ -540,24 +910,391 @@ async function loadFloorData() {
     loadSummary();
     return;
   }
-  try {
-    const res = await fetch(`/floors/${encodeURIComponent(pn)}/${fl}/preview`);
-    if (res.ok) {
-      const data = await res.json();
-      STATE.snapSize = data.snap_size || STATE.snapSize;
-      render2DPreview(data);
-    }
-  } catch(e) {}
-  try {
-    const res = await fetch(`/floors/${encodeURIComponent(pn)}/${fl}/mesh3d`);
-    if (res.ok) {
-      const data = await res.json();
-      render3DModel(data);
-    }
-  } catch(e) {}
+
+  const seq = ++floorLoadSeq;
+  const floorMeta = STATE.uploadedFloors[fl] || {};
+  const cacheTag = floorMeta.preview_cache_at
+    ? `?v=${encodeURIComponent(floorMeta.preview_cache_at)}`
+    : `?t=${Date.now()}`;
+  const previewUrl = `/floors/${encodeURIComponent(pn)}/${encodeURIComponent(fl)}/preview${cacheTag}`;
+  const meshUrl = `/floors/${encodeURIComponent(pn)}/${encodeURIComponent(fl)}/mesh3d`;
+
+  previewData = null;
+  invalidatePlanSegList();
+  draw2D();
+  if (modelGroup) while (modelGroup.children.length) modelGroup.remove(modelGroup.children[0]);
+  if (intersectGroup) while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
+
+  setViewLoading('view2d-loading', true, '2D 평면뷰 로딩 중...', '서버에서 부재 외곽선 불러오는 중');
+  setViewLoading('view3d-loading', true, '3D 모델 로딩 중...', '서버에서 메시 생성 중 (수십 초 걸릴 수 있음)');
+  setStatusLoad('2D · 3D 병렬 로딩 중...');
+
   loadZones();
-  updateStatusBar();
+  loadStrengthZones();
+  loadFloorMembers();
+  loadProjectStrengths();
+
+  let done2d = false;
+  let done3d = false;
+  const refreshStatus = () => {
+    if (seq !== floorLoadSeq) return;
+    if (!done2d && !done3d) setStatusLoad('2D · 3D 병렬 로딩 중...');
+    else if (done2d && !done3d) setStatusLoad('2D 완료 · 3D 로딩 중...');
+    else if (!done2d && done3d) setStatusLoad('3D 완료 · 2D 로딩 중...');
+    else setStatusLoad('');
+  };
+
+  const load2d = (async () => {
+    const cacheKey = previewCacheKey(pn, fl);
+    const memHit = previewCache.get(cacheKey);
+    const serverCacheAt = floorMeta.preview_cache_at || null;
+    const finish2dLoad = () => {
+      if (seq !== floorLoadSeq) return;
+      done2d = true;
+      setViewLoading('view2d-loading', false);
+      refreshStatus();
+    };
+
+    if (
+      memHit?.data?.segments?.length
+      && memHit.cacheAt === serverCacheAt
+      && !memHit.data.segments.some(s => s.kind === 'circle')
+    ) {
+      if (seq !== floorLoadSeq) return;
+      setViewLoading('view2d-loading', true, '2D 즉시 표시 중...', '브라우저 캐시');
+      previewData = memHit.data;
+      refreshPlanSegList();
+      applyPreviewMeta(memHit.data);
+      draw2D();
+      schedulePlanLayerBake();
+      finish2dLoad();
+      return;
+    }
+
+    try {
+      setViewLoading('view2d-loading', true, '2D 로드 중...', '부재 외곽선 (gzip 캐시)');
+      let { data, cacheHit, cacheAt } = await fetchPreviewPayload(previewUrl);
+      const stale = !data?.segments?.length || data.v !== 3
+        || data.segments.some(s => s.kind === 'circle' || !s.p?.length);
+      if (stale) {
+        const rebuildUrl = previewUrl + (previewUrl.includes('?') ? '&' : '?') + 'rebuild=1';
+        ({ data, cacheHit, cacheAt } = await fetchPreviewPayload(rebuildUrl));
+      }
+      if (seq !== floorLoadSeq) return;
+      if (cacheAt && STATE.uploadedFloors[fl]) STATE.uploadedFloors[fl].preview_cache_at = cacheAt;
+      previewData = data;
+      refreshPlanSegList();
+      applyPreviewMeta(data);
+      draw2D();
+      schedulePlanLayerBake();
+      storePreviewCacheEntry(pn, fl, data, cacheAt || floorMeta.preview_cache_at);
+      setViewLoading('view2d-loading', true, '2D 표시 완료',
+        `${data.n || 0}개 폴리곤 · ${data.members || 0}개 부재${cacheHit ? ' (서버 캐시)' : ''}`);
+      finish2dLoad();
+    } catch (e) {
+      if (seq !== floorLoadSeq) return;
+      done2d = true;
+      setViewLoading('view2d-loading', false);
+      refreshStatus();
+      showToast('2D 미리보기 로드 실패', 'error');
+    }
+  })();
+
+  const load3d = (async () => {
+    try {
+      const res = await fetch(meshUrl);
+      if (seq !== floorLoadSeq) return;
+      if (!res.ok) throw new Error('mesh3d failed');
+      setViewLoading('view3d-loading', true, '3D 렌더링 중...', '부재 메시 표시 중');
+      const data = await res.json();
+      if (seq !== floorLoadSeq) return;
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      if (seq !== floorLoadSeq) return;
+      render3DModel(data);
+      done3d = true;
+      setViewLoading('view3d-loading', false);
+      refreshStatus();
+    } catch (e) {
+      if (seq !== floorLoadSeq) return;
+      done3d = true;
+      setViewLoading('view3d-loading', false);
+      refreshStatus();
+      showToast('3D 모델 로드 실패', 'error');
+    }
+  })();
+
+  await Promise.allSettled([load2d, load3d]);
+  if (seq === floorLoadSeq) updateStatusBar();
 }
+
+// ===================== STRENGTH / MEMBERS =====================
+async function loadProjectStrengths() {
+  try {
+    const res = await fetch(`/projects/${encodeURIComponent(STATE.projectName)}/strengths`);
+    if (res.ok) {
+      const d = await res.json();
+      STATE.defaultStrengths = d.default_strengths || {};
+      document.getElementById('def-str-col').value = STATE.defaultStrengths['기둥'] ?? '';
+      document.getElementById('def-str-wall').value = STATE.defaultStrengths['벽체'] ?? '';
+      document.getElementById('def-str-h').value = STATE.defaultStrengths['수평'] ?? '';
+    }
+  } catch(e) {}
+}
+
+document.getElementById('btn-save-strengths').onclick = async () => {
+  const col = parseFloat(document.getElementById('def-str-col').value);
+  const wall = parseFloat(document.getElementById('def-str-wall').value);
+  const h = parseFloat(document.getElementById('def-str-h').value);
+  if (!col || col <= 0 || !wall || wall <= 0) {
+    expandSidebarSection('def-strength');
+    showToast('기둥·벽체 기본 강도(MPa)를 입력하세요', 'error');
+    return;
+  }
+  const body = { default_strengths: { '기둥': col, '벽체': wall } };
+  if (h && h > 0) body.default_strengths['수평'] = h;
+  STATE.defaultStrengths = body.default_strengths;
+  await fetch(`/projects/${encodeURIComponent(STATE.projectName)}/strengths`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  loadFloorData();
+  showToast('기본 강도 저장됨', 'success');
+};
+
+async function loadStrengthZones() {
+  if (!STATE.activeFloor) { STATE.strengthZones = []; renderStrengthZoneList(); return; }
+  try {
+    const res = await fetch(`/strength-zones/${encodeURIComponent(STATE.projectName)}?floor_label=${STATE.activeFloor}`);
+    if (res.ok) { STATE.strengthZones = await res.json(); renderStrengthZoneList(); draw2D(); }
+  } catch(e) {}
+}
+
+function renderStrengthZoneList() {
+  const el = document.getElementById('strength-zone-list');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!STATE.strengthZones.length) {
+    el.innerHTML = '<div style="font-size:10px;color:var(--text2)">강도 구역 없음</div>';
+    return;
+  }
+  STATE.strengthZones.forEach(sz => {
+    const row = document.createElement('div');
+    row.className = 'strength-zone-item';
+    const isEditing = STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id === sz.id;
+    if (isEditing) row.style.outline = '1px solid #ef4444';
+    row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+      <span style="flex:1;min-width:0;cursor:pointer" title="윤곽 편집"><strong>${sz.zone_name}</strong> · ${sz.strength}MPa · ${(sz.target_parts||[]).join('/')}</span>
+      <button class="zbtn z-edit" title="윤곽·설정 수정">✎</button>
+      <button class="zbtn z-del" title="삭제">✕</button>
+    </div>`;
+    row.querySelector('span').onclick = () => startStrengthZoneEdit(sz);
+    row.querySelector('.z-edit').onclick = (ev) => {
+      ev.stopPropagation();
+      if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id === sz.id && STATE.drawingPoints.length >= 3) {
+        showStrengthZoneModal(sz);
+      } else {
+        startStrengthZoneEdit(sz);
+      }
+    };
+    row.querySelector('.z-del').onclick = async (ev) => {
+      ev.stopPropagation();
+      await fetch(`/strength-zones/${sz.id}`, {method:'DELETE'});
+      loadStrengthZones();
+      loadFloorMembers();
+      loadFloorData();
+      try {
+        await recalculateAllPourZones();
+        await loadZones();
+        loadSummary();
+      } catch (e) { /* 수동 재산출 */ }
+      loadFloorMembers();
+      showToast('강도 구역 삭제됨', 'success');
+    };
+    el.appendChild(row);
+  });
+}
+
+async function loadFloorMembers() {
+  if (!STATE.activeFloor || !STATE.uploadedFloors[STATE.activeFloor]) {
+    STATE.floorMembers = [];
+    renderMemberPanel();
+    return;
+  }
+  try {
+    const res = await fetch(`/floors/${encodeURIComponent(STATE.projectName)}/${STATE.activeFloor}/members`);
+    if (res.ok) {
+      STATE.floorMembers = await res.json();
+      renderMemberPanel();
+    }
+  } catch(e) {}
+}
+
+function renderMemberPanel() {
+  const el = document.getElementById('member-panel');
+  if (!el) return;
+  const summary = {};
+  STATE.floorMembers.forEach(m => {
+    const sl = m.effective_strength == null ? '미설정' : Math.round(m.effective_strength);
+    const k = `${m.part_type}/${sl}`;
+    summary[k] = (summary[k]||0) + 1;
+  });
+  const keys = Object.keys(summary).slice(0, 8);
+  el.innerHTML = keys.map(k => `<div class="member-row"><span>${k}</span><span>${summary[k]}개</span></div>`).join('')
+    + (STATE.floorMembers.length > 0 ? `<div style="font-size:9px;color:var(--text2);padding-top:4px">총 ${STATE.floorMembers.length}개 부재 · 클릭하여 강도 수정</div>` : '<div style="font-size:10px;color:var(--text2)">부재 없음 (모델 업로드 후 ↻)</div>');
+  el.querySelectorAll('.member-row').forEach((row, i) => {
+    row.style.cursor = 'pointer';
+    row.onclick = () => showMemberEditModal(keys[i]);
+  });
+}
+
+function showMemberEditModal(filterKey) {
+  const [part, str] = filterKey.split('/');
+  const members = STATE.floorMembers.filter(m => {
+    const sl = m.effective_strength == null ? '미설정' : String(Math.round(m.effective_strength));
+    return m.part_type === part && sl === str;
+  });
+  if (!members.length) return;
+  const m = members[0];
+  const val = prompt(`${part} 부재(${members.length}개) 강도 수동 지정 (MPa)\n빈값=자동`, m.strength_override || m.effective_strength || '');
+  if (val === null) return;
+  const override = val.trim() === '' ? null : parseFloat(val);
+  Promise.all(members.filter(x=>x.id).map(x =>
+    fetch(`/members/${x.id}`, {method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({strength_override: override})})
+  )).then(() => { loadFloorMembers(); loadFloorData(); showToast('부재 강도 업데이트', 'success'); });
+}
+
+document.getElementById('btn-new-strength-zone').onclick = () => {
+  if (!STATE.activeFloor) { showToast('층을 먼저 선택하세요', 'error'); return; }
+  if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id && STATE.drawingPoints.length >= 3) {
+    const sz = STATE.strengthZones.find(z => z.id === STATE.editTarget.id);
+    if (sz) showStrengthZoneModal(sz);
+    return;
+  }
+  if (STATE.tool === 'draw-strength' && STATE.isDrawing && STATE.drawingPoints.length >= 3) {
+    showStrengthZoneModal();
+    return;
+  }
+  STATE.drawingPoints = [];
+  STATE.isDrawing = true;
+  STATE.drawingStrengthZone = true;
+  STATE.editTarget = { type: 'strength-zone', id: null };
+  setActiveTool('draw-strength');
+  showToast('2D 클릭으로 점 추가 → 우측 상단 [저장] 또는 사이드바 버튼', 'success');
+};
+
+function showStrengthZoneModal(existing) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const sz = existing || {};
+  const parts = sz.target_parts || [];
+  overlay.innerHTML = `<div class="modal">
+    <h3>${existing ? '강도 구역 수정' : '강도 구역 저장'}</h3>
+    <input type="text" id="sz-name" placeholder="구역 이름 (예: 코어)" value="${sz.zone_name||''}">
+    <label style="font-size:11px;color:var(--text2);margin-top:6px;display:block">적용 강도 (MPa) — 직접 입력</label>
+    <input type="number" id="sz-strength" placeholder="예: 35" step="0.5" min="1" value="${sz.strength ?? ''}">
+    <label style="font-size:11px;color:var(--text2);margin-top:8px;display:block">대상 부재 (복수 선택)</label>
+    <div style="display:flex;gap:12px;margin:6px 0 10px;font-size:12px">
+      <label><input type="checkbox" id="sz-col" ${!existing || parts.includes('기둥') ? 'checked' : ''}> 기둥</label>
+      <label><input type="checkbox" id="sz-wall" ${!existing || parts.includes('벽체') ? 'checked' : ''}> 벽체</label>
+      <label><input type="checkbox" id="sz-h" ${parts.includes('수평') ? 'checked' : ''}> 수평</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="sz-cancel">취소</button>
+      <button class="btn btn-success btn-sm" id="sz-save">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#sz-name')?.focus();
+  overlay.querySelector('#sz-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#sz-save').onclick = async () => {
+    const name = overlay.querySelector('#sz-name').value.trim() || `강도구역-${Date.now()%1000}`;
+    const strength = parseFloat(overlay.querySelector('#sz-strength').value);
+    const target_parts = [];
+    if (overlay.querySelector('#sz-col').checked) target_parts.push('기둥');
+    if (overlay.querySelector('#sz-wall').checked) target_parts.push('벽체');
+    if (overlay.querySelector('#sz-h').checked) target_parts.push('수평');
+    if (!strength || strength <= 0) {
+      showToast('적용 강도(MPa)를 입력하세요', 'error');
+      return;
+    }
+    if (!target_parts.length) {
+      showToast('대상 부재를 1개 이상 선택하세요', 'error');
+      return;
+    }
+    const polygon = STATE.drawingPoints.length >= 3
+      ? STATE.drawingPoints.map(p => ({x:p.x, y:p.y}))
+      : (existing?.polygon || []);
+    if (polygon.length < 3) {
+      showToast('범위 선분(폴리라인)이 3점 미만입니다', 'error');
+      return;
+    }
+    if (existing?.id) {
+      await fetch(`/strength-zones/${existing.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ zone_name: name, polygon, strength, target_parts })});
+    } else {
+      await fetch('/strength-zones', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ project_name: STATE.projectName, floor_label: STATE.activeFloor,
+          zone_name: name, polygon, strength, target_parts })});
+    }
+    STATE.drawingPoints = [];
+    STATE.isDrawing = false;
+    STATE.drawingStrengthZone = false;
+    STATE.editTarget = { type: 'zone', id: null };
+    setActiveTool('select');
+    overlay.remove();
+    invalidatePreviewCache(STATE.projectName, STATE.activeFloor);
+    clearPlanRaster();
+    try {
+      await fetch(`/floors/${encodeURIComponent(STATE.projectName)}/${encodeURIComponent(STATE.activeFloor)}/warm-preview`, { method: 'POST' });
+    } catch (e) { /* warm 실패 시 loadFloorData가 rebuild */ }
+    loadStrengthZones();
+    loadFloorMembers();
+    loadFloorData();
+    try {
+      showToast('강도 구역 반영 — 타설 구역 물량 재산출 중...', 'success');
+      await recalculateAllPourZones();
+      await loadZones();
+      loadSummary();
+      showToast(`강도 구역 "${name}" · ${strength}MPa · ${target_parts.join('/')} — 물량 갱신 완료`, 'success');
+    } catch (e) {
+      showToast(`강도 구역 저장됨 — 구역 ▶ 버튼으로 물량 재산출 필요`, 'error');
+    }
+  };
+}
+
+function formatBreakdown(z) {
+  const h = z.volume_horizontal || 0;
+  const v = z.volume_vertical || 0;
+  const byS = z.volume_by_strength || {};
+  const chips = [];
+  if (h > 0) chips.push(`<span class="breakdown-chip h">수평 ${h.toFixed(1)}m³</span>`);
+  if (v > 0) chips.push(`<span class="breakdown-chip v">수직 ${v.toFixed(1)}m³</span>`);
+  Object.entries(byS)
+    .sort((a, b) => (Number(b[0]) || 0) - (Number(a[0]) || 0))
+    .forEach(([k, val]) => {
+      if (val > 0) chips.push(`<span class="breakdown-chip">${formatStrengthLabel(k)} ${val.toFixed(1)}m³</span>`);
+    });
+  return chips.length ? `<div class="breakdown-row">${chips.join('')}</div>` : '';
+}
+
+async function recalculateAllPourZones() {
+  if (!STATE.activeFloor) return null;
+  const res = await fetch(
+    `/floors/${encodeURIComponent(STATE.projectName)}/${encodeURIComponent(STATE.activeFloor)}/recalculate-zones`,
+    { method: 'POST' }
+  );
+  if (!res.ok) throw new Error('recalculate failed');
+  return res.json();
+}
+
+document.getElementById('btn-resync-members').onclick = async () => {
+  if (!STATE.activeFloor) return;
+  showToast('부재 재추출 + 2D 캐시 재생성 중...', 'success');
+  await fetch(`/floors/${encodeURIComponent(STATE.projectName)}/${STATE.activeFloor}/resync-members`, {method:'POST'});
+  invalidatePreviewCache(STATE.projectName, STATE.activeFloor);
+  loadFloorMembers();
+  loadFloorData();
+};
 
 // ===================== ZONES =====================
 async function loadZones() {
@@ -674,6 +1411,7 @@ function renderZoneList() {
         <div class="info" style="flex:1;cursor:pointer">
           <div style="font-weight:600">${z.zone_name}</div>
           <div style="font-size:10px;color:var(--text2)">${z.status==='completed'?'완료':'예정'} | ${z.planned_date||'-'} | ${calcVol.toFixed(1)} m³ (${plannedTrucks}대)</div>
+          ${formatBreakdown(z)}
         </div>
         <div style="display:flex;gap:2px;flex-shrink:0">
           <button class="zbtn z-calc" title="체적 산출">▶</button>
@@ -1053,6 +1791,7 @@ function showZoneModal(existingZone) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  overlay.querySelector('#m-zone-name')?.focus();
 
   overlay.querySelector('#m-cancel').onclick = () => overlay.remove();
 
@@ -1098,8 +1837,127 @@ const ctx2d = canvas2d.getContext('2d');
 let view2d = { cx:0, cy:0, scale:1, width:0, height:0 };
 let previewData = null;
 
-// Offscreen cache for mesh (prevents re-drawing 100k+ faces every frame)
-let meshCache = null;  // {canvas, cx, cy, scale}
+// 2D plan layer cache — 팬/줌 중 경량, 정지 후 오프스크린 bake
+let planSegList = null;
+let planLayer = null;
+let planLayerJob = 0;
+let viewInteracting = false;
+let viewSettleTimer = null;
+const PLAN_BAKE_BATCH = 280;
+
+function invalidatePlanSegList() {
+  planSegList = null;
+  invalidatePlanLayer();
+}
+
+function invalidatePlanLayer() {
+  planLayer = null;
+  planLayerJob++;
+}
+
+function refreshPlanSegList() {
+  if (!previewData) {
+    planSegList = [];
+    return;
+  }
+  const segs = flattenPlanSegments(previewData).filter(seg => seg.p?.length >= 3);
+  planSegList = segs.sort(
+    (a, b) => (PART_DRAW_ORDER[a.part] ?? 1) - (PART_DRAW_ORDER[b.part] ?? 1)
+  );
+  for (const seg of planSegList) {
+    if (seg._bb || !seg.p?.length) continue;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const pt of seg.p) {
+      if (pt[0] < minX) minX = pt[0];
+      if (pt[0] > maxX) maxX = pt[0];
+      if (pt[1] < minY) minY = pt[1];
+      if (pt[1] > maxY) maxY = pt[1];
+    }
+    seg._bb = { minX, maxX, minY, maxY };
+  }
+  invalidatePlanLayer();
+}
+
+function planLayerValid() {
+  return planLayer
+    && planLayer.scale === view2d.scale
+    && planLayer.cx === view2d.cx
+    && planLayer.cy === view2d.cy
+    && planLayer.width === view2d.width
+    && planLayer.height === view2d.height;
+}
+
+function markViewInteracting() {
+  viewInteracting = true;
+  if (viewSettleTimer) clearTimeout(viewSettleTimer);
+  viewSettleTimer = setTimeout(() => {
+    viewInteracting = false;
+    viewSettleTimer = null;
+    invalidatePlanLayer();
+    schedulePlanLayerBake();
+    requestDraw2D();
+  }, 120);
+}
+
+function schedulePlanLayerBake() {
+  if (viewInteracting || !planSegList?.length) return;
+  const jobId = ++planLayerJob;
+  requestAnimationFrame(() => bakePlanLayerAsync(jobId));
+}
+
+async function bakePlanLayerAsync(jobId) {
+  if (jobId !== planLayerJob || viewInteracting || !planSegList?.length) return;
+  const off = document.createElement('canvas');
+  off.width = view2d.width;
+  off.height = view2d.height;
+  const oc = off.getContext('2d');
+  const vb = getViewBounds();
+  const visible = planSegList.filter(seg => segInView(seg, vb));
+
+  for (let i = 0; i < visible.length; i += PLAN_BAKE_BATCH) {
+    if (jobId !== planLayerJob || viewInteracting) return;
+    const chunk = visible.slice(i, i + PLAN_BAKE_BATCH);
+    drawPlanSegmentsTo(oc, chunk, { light: false, skipSort: true });
+    await new Promise(r => requestAnimationFrame(r));
+  }
+  if (jobId !== planLayerJob) return;
+  planLayer = {
+    canvas: off,
+    scale: view2d.scale,
+    cx: view2d.cx,
+    cy: view2d.cy,
+    width: view2d.width,
+    height: view2d.height,
+  };
+  requestDraw2D();
+}
+
+function getViewBounds() {
+  const tl = screenToWorld(0, 0);
+  const br = screenToWorld(view2d.width, view2d.height);
+  const pad = 5000 / Math.max(view2d.scale, 0.0001);
+  return {
+    minX: Math.min(tl.x, br.x) - pad,
+    maxX: Math.max(tl.x, br.x) + pad,
+    minY: Math.min(tl.y, br.y) - pad,
+    maxY: Math.max(tl.y, br.y) + pad,
+  };
+}
+
+function polyIntersectsView(poly, vb) {
+  for (const pt of poly) {
+    if (pt[0] >= vb.minX && pt[0] <= vb.maxX && pt[1] >= vb.minY && pt[1] <= vb.maxY) return true;
+  }
+  return false;
+}
+
+function segInView(seg, vb) {
+  const b = seg._bb;
+  if (!b) return seg.p && polyIntersectsView(seg.p, vb);
+  return b.maxX >= vb.minX && b.minX <= vb.maxX && b.maxY >= vb.minY && b.minY <= vb.maxY;
+}
+
+const PART_DRAW_ORDER = { '수평': 0, '벽체': 1, '기둥': 2, '미분류': 1 };
 
 function resize2D() {
   const cont = document.getElementById('view2d-container');
@@ -1107,8 +1965,8 @@ function resize2D() {
   canvas2d.height = cont.clientHeight;
   view2d.width = canvas2d.width;
   view2d.height = canvas2d.height;
-  meshCache = null;
-  draw2D();
+  invalidatePlanLayer();
+  requestDraw2D();
 }
 
 function worldToScreen(wx, wy) {
@@ -1137,19 +1995,109 @@ function snapToGrid(wx, wy) {
   };
 }
 
-function render2DPreview(data) {
-  previewData = data;
-  meshCache = null;
-  if (data.bbox) {
-    const b = data.bbox;
-    view2d.cx = (b.min.x + b.max.x) / 2;
-    view2d.cy = (b.min.y + b.max.y) / 2;
-    const dx = b.max.x - b.min.x;
-    const dy = b.max.y - b.min.y;
-    const margin = 1.2;
-    view2d.scale = Math.min(view2d.width / (dx * margin), view2d.height / (dy * margin));
+function flattenPlanSegments(data) {
+  if (!data) return [];
+  if (data.v === 3 && data.segments?.length) return data.segments;
+  if (data.v === 2 && data.layers) {
+    const segs = [];
+    for (const part of ['수평', '벽체', '기둥', '미분류']) {
+      const L = data.layers[part];
+      if (!L?.p?.length) continue;
+      for (const poly of L.p) {
+        segs.push({ part, s: L.s, f: L.f, w: L.w, so: L.so, p: poly });
+      }
+    }
+    return segs;
   }
-  draw2D();
+  return [];
+}
+
+function tracePolyPath(c, poly) {
+  if (!poly || poly.length < 3) return false;
+  for (let i = 0; i < poly.length; i++) {
+    const pt = worldToScreen(poly[i][0], poly[i][1]);
+    if (i === 0) c.moveTo(pt.x, pt.y);
+    else c.lineTo(pt.x, pt.y);
+  }
+  c.closePath();
+  return true;
+}
+
+function drawPlanSegmentsTo(c, segments, { light = false, skipSort = false } = {}) {
+  if (!segments?.length) return;
+  const vb = getViewBounds();
+  const ordered = skipSort ? segments : [...segments].sort(
+    (a, b) => (PART_DRAW_ORDER[a.part] ?? 1) - (PART_DRAW_ORDER[b.part] ?? 1)
+  );
+
+  if (!light) {
+    for (const seg of ordered) {
+      if (!segInView(seg, vb)) continue;
+      const simple = !seg.p || seg.p.length <= 6;
+      if (!seg.so && seg.f && seg.part !== '수평' && !simple) {
+        c.beginPath();
+        if (tracePolyPath(c, seg.p)) {
+          c.fillStyle = seg.f;
+          c.fill();
+        }
+      }
+    }
+  }
+
+  for (const seg of ordered) {
+    if (!segInView(seg, vb)) continue;
+    if (!seg?.p || seg.p.length < 3) continue;
+    c.beginPath();
+    if (tracePolyPath(c, seg.p)) {
+      c.strokeStyle = seg.s || 'rgba(148,163,184,0.45)';
+      c.lineWidth = Math.max(seg.part === '수평' ? 1.0 : 0.75, seg.w || 0.6);
+      c.stroke();
+    }
+  }
+}
+
+/** 팬/줌: 캐시 blit 우선, 이동 중 경량, 정지 후 bake */
+function drawPlanSegmentsDirect(c) {
+  if (!previewData) return;
+  if (!planSegList) refreshPlanSegList();
+
+  if (planLayerValid()) {
+    c.drawImage(planLayer.canvas, 0, 0);
+    return;
+  }
+
+  if (planSegList?.length) {
+    drawPlanSegmentsTo(c, planSegList, { light: viewInteracting });
+    return;
+  }
+  if (!previewData.member_curves?.length) return;
+  const vb = getViewBounds();
+  const items = [...previewData.member_curves].sort(
+    (a, b) => (PART_DRAW_ORDER[normalizePartTypeClient(a.part_type)] ?? 1) -
+              (PART_DRAW_ORDER[normalizePartTypeClient(b.part_type)] ?? 1)
+  );
+  for (const item of items) {
+    if (!item.curves) continue;
+    const part = normalizePartTypeClient(item.part_type);
+    const strokeOnly = part === '수평';
+    for (const raw of item.curves) {
+      const poly = (part === '수평' || part === '벽체') ? raw : simplifyPoly(raw, 48);
+      if (!poly || poly.length < 3 || !polyIntersectsView(poly, vb)) continue;
+      if (!strokeOnly) {
+        c.beginPath();
+        if (tracePolyPath(c, poly)) {
+          c.fillStyle = item.fill || 'rgba(100,116,139,0.08)';
+          c.fill();
+        }
+      }
+      c.beginPath();
+      if (tracePolyPath(c, poly)) {
+        c.strokeStyle = item.stroke || 'rgba(148,163,184,0.45)';
+        c.lineWidth = Math.max(0.75, item.line_width || 0.6);
+        c.stroke();
+      }
+    }
+  }
 }
 
 function draw2D() {
@@ -1159,37 +2107,12 @@ function draw2D() {
   c.fillRect(0, 0, view2d.width, view2d.height);
 
   drawGrid(c);
-
-  // 메시 캐시: 이동/줌 중에는 기존 캐시를 변환해서 표시 (빠름)
-  if (meshCache && (meshCache.scale !== view2d.scale || meshCache.cx !== view2d.cx || meshCache.cy !== view2d.cy)) {
-    // 이전 캐시를 오프셋/스케일 변환해서 임시 표시
-    const dScale = view2d.scale / meshCache.scale;
-    const dxPx = (meshCache.cx - view2d.cx) * view2d.scale;
-    const dyPx = -(meshCache.cy - view2d.cy) * view2d.scale;
-    c.save();
-    c.translate(view2d.width/2 + dxPx, view2d.height/2 + dyPx);
-    c.scale(dScale, dScale);
-    c.translate(-view2d.width/2, -view2d.height/2);
-    c.drawImage(meshCache.canvas, 0, 0);
-    c.restore();
-    // 디바운스로 캐시 재생성 예약
-    scheduleMeshRebuild();
-  } else {
-    drawPreviewGeometry(c);
-  }
+  drawPlanSegmentsDirect(c);
 
   drawExistingZones(c);
+  drawStrengthZonesOn2D(c);
   drawActualPoursOn2D(c);
   drawCurrentPolygon(c);
-}
-
-let meshRebuildTimer = null;
-function scheduleMeshRebuild() {
-  if (meshRebuildTimer) clearTimeout(meshRebuildTimer);
-  meshRebuildTimer = setTimeout(() => {
-    meshCache = null;
-    draw2D();
-  }, 150);
 }
 
 function drawGrid(c) {
@@ -1198,6 +2121,7 @@ function drawGrid(c) {
   let gridStep = s;
   if (zoomFactor > 2) gridStep = s / 5;
   else if (zoomFactor > 1) gridStep = s / 2;
+  if (viewInteracting) gridStep *= 2;
 
   const tl = screenToWorld(0, view2d.height);
   const br = screenToWorld(view2d.width, 0);
@@ -1206,14 +2130,16 @@ function drawGrid(c) {
 
   c.strokeStyle = 'rgba(100,116,139,0.15)';
   c.lineWidth = 0.5;
+  c.beginPath();
   for (let x = startX; x <= br.x; x += gridStep) {
     const p = worldToScreen(x, 0);
-    c.beginPath(); c.moveTo(p.x, 0); c.lineTo(p.x, view2d.height); c.stroke();
+    c.moveTo(p.x, 0); c.lineTo(p.x, view2d.height);
   }
   for (let y = startY; y <= br.y; y += gridStep) {
     const p = worldToScreen(0, y);
-    c.beginPath(); c.moveTo(0, p.y); c.lineTo(view2d.width, p.y); c.stroke();
+    c.moveTo(0, p.y); c.lineTo(view2d.width, p.y);
   }
+  c.stroke();
 
   const o = worldToScreen(0, 0);
   c.strokeStyle = 'rgba(239,68,68,0.4)'; c.lineWidth = 1;
@@ -1222,65 +2148,15 @@ function drawGrid(c) {
   c.beginPath(); c.moveTo(0, o.y); c.lineTo(view2d.width, o.y); c.stroke();
 }
 
-function drawPreviewGeometry(c) {
-  if (!previewData) return;
-
-  // 캐시가 없거나 줌 레벨이 변경되면 오프스크린에 미리 렌더링
-  if (!meshCache || meshCache.scale !== view2d.scale || meshCache.cx !== view2d.cx || meshCache.cy !== view2d.cy) {
-    buildMeshCache();
+function simplifyPoly(poly, maxPts) {
+  if (!poly || poly.length <= maxPts) return poly;
+  const step = Math.max(1, Math.floor(poly.length / maxPts));
+  const out = [];
+  for (let i = 0; i < poly.length; i += step) out.push(poly[i]);
+  if (out.length >= 3 && (out[0][0] !== out[out.length-1][0] || out[0][1] !== out[out.length-1][1])) {
+    out.push(out[0]);
   }
-
-  if (meshCache) {
-    c.drawImage(meshCache.canvas, 0, 0);
-  }
-}
-
-function buildMeshCache() {
-  const offscreen = document.createElement('canvas');
-  offscreen.width = view2d.width;
-  offscreen.height = view2d.height;
-  const oc = offscreen.getContext('2d');
-
-  oc.strokeStyle = 'rgba(148,163,184,0.5)';
-  oc.fillStyle = 'rgba(100,116,139,0.08)';
-  oc.lineWidth = 0.5;
-
-  if (previewData.meshes) {
-    previewData.meshes.forEach(m => {
-      // 대형 메시는 면 수 제한 (성능)
-      const maxFaces = 8000;
-      const step = m.faces.length > maxFaces ? Math.ceil(m.faces.length / maxFaces) : 1;
-
-      for (let fi = 0; fi < m.faces.length; fi += step) {
-        const face = m.faces[fi];
-        oc.beginPath();
-        for (let i = 0; i < face.length; i++) {
-          const v = m.vertices[face[i]];
-          if (!v) continue;
-          const px = view2d.width/2 + (v[0] - view2d.cx) * view2d.scale;
-          const py = view2d.height/2 - (v[1] - view2d.cy) * view2d.scale;
-          if (i === 0) oc.moveTo(px, py); else oc.lineTo(px, py);
-        }
-        oc.closePath();
-        oc.fill();
-        oc.stroke();
-      }
-    });
-  }
-
-  if (previewData.edges) {
-    oc.strokeStyle = 'rgba(148,163,184,0.6)';
-    oc.lineWidth = 1;
-    previewData.edges.forEach(edge => {
-      if (Array.isArray(edge[0]) && Array.isArray(edge[0][0])) {
-        edge.forEach(seg => { drawEdgeSegOn(oc, seg); });
-      } else if (Array.isArray(edge[0])) {
-        drawEdgeSegOn(oc, edge);
-      }
-    });
-  }
-
-  meshCache = { canvas: offscreen, scale: view2d.scale, cx: view2d.cx, cy: view2d.cy };
+  return out;
 }
 
 function drawEdgeSegOn(c, seg) {
@@ -1290,6 +2166,33 @@ function drawEdgeSegOn(c, seg) {
   const p2x = view2d.width/2 + (seg[1][0] - view2d.cx) * view2d.scale;
   const p2y = view2d.height/2 - (seg[1][1] - view2d.cy) * view2d.scale;
   c.beginPath(); c.moveTo(p1x, p1y); c.lineTo(p2x, p2y); c.stroke();
+}
+
+function drawStrengthZonesOn2D(c) {
+  STATE.strengthZones.forEach(sz => {
+    if (!sz.polygon || sz.polygon.length < 3) return;
+    if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id === sz.id) return;
+    c.beginPath();
+    sz.polygon.forEach((p, i) => {
+      const s = worldToScreen(p.x, p.y);
+      if (i === 0) c.moveTo(s.x, s.y); else c.lineTo(s.x, s.y);
+    });
+    c.closePath();
+    c.fillStyle = 'rgba(239,68,68,0.12)';
+    c.strokeStyle = '#ef4444';
+    c.lineWidth = 2;
+    c.setLineDash([6, 4]);
+    c.fill();
+    c.stroke();
+    c.setLineDash([]);
+    const cen = sz.polygon.reduce((a,p)=>({x:a.x+p.x,y:a.y+p.y}), {x:0,y:0});
+    cen.x /= sz.polygon.length; cen.y /= sz.polygon.length;
+    const sp = worldToScreen(cen.x, cen.y);
+    c.fillStyle = '#ef4444';
+    c.font = 'bold 11px sans-serif';
+    c.textAlign = 'center';
+    c.fillText(`${sz.strength}MPa`, sp.x, sp.y);
+  });
 }
 
 function drawExistingZones(c) {
@@ -1345,9 +2248,10 @@ function drawActualPoursOn2D(c) {
 
 function drawCurrentPolygon(c) {
   if (STATE.drawingPoints.length === 0) return;
-  const isActual = STATE.editTarget.type === 'actual' || STATE.editTarget.type === 'actual-new';
-  c.strokeStyle = isActual ? '#22c55e' : '#3b82f6';
-  c.fillStyle = isActual ? 'rgba(34,197,94,0.18)' : 'rgba(59,130,246,0.15)';
+  const isStrength = STATE.editTarget.type === 'strength-zone' || STATE.drawingStrengthZone;
+  const isActual = !isStrength && (STATE.editTarget.type === 'actual' || STATE.editTarget.type === 'actual-new');
+  c.strokeStyle = isStrength ? '#ef4444' : (isActual ? '#22c55e' : '#3b82f6');
+  c.fillStyle = isStrength ? 'rgba(239,68,68,0.15)' : (isActual ? 'rgba(34,197,94,0.18)' : 'rgba(59,130,246,0.15)');
   c.lineWidth = 2;
   c.beginPath();
   STATE.drawingPoints.forEach((pt, i) => {
@@ -1360,7 +2264,7 @@ function drawCurrentPolygon(c) {
   // 꼭짓점 (더블클릭으로 삭제 가능 표시)
   STATE.drawingPoints.forEach((pt, i) => {
     const p = worldToScreen(pt.x, pt.y);
-    c.fillStyle = isActual ? '#22c55e' : '#3b82f6';
+    c.fillStyle = isStrength ? '#ef4444' : (isActual ? '#22c55e' : '#3b82f6');
     c.strokeStyle = '#fff';
     c.lineWidth = 2;
     c.beginPath(); c.arc(p.x, p.y, isActual ? 6 : 5, 0, Math.PI*2); c.fill(); c.stroke();
@@ -1368,10 +2272,14 @@ function drawCurrentPolygon(c) {
     c.fillStyle = '#fff'; c.font = '9px sans-serif'; c.textAlign = 'center';
     c.fillText(i+1, p.x, p.y - 10);
   });
-  c.fillStyle = isActual ? '#22c55e' : '#3b82f6';
+  c.fillStyle = isActual ? '#22c55e' : (isStrength ? '#ef4444' : '#3b82f6');
   c.font = '10px sans-serif';
   c.textAlign = 'left';
-  c.fillText(isActual ? '[실제 타설 편집]' : '[계획 구역 편집]', 12, 20);
+  if (isStrength) {
+    c.fillText(STATE.editTarget.id ? '[강도 구역 윤곽 편집 — Del:취소]' : '[강도 구역 그리기]', 12, 20);
+  } else {
+    c.fillText(isActual ? '[실제 타설 편집]' : '[계획 구역 편집]', 12, 20);
+  }
 }
 
 // 2D Mouse events
@@ -1411,6 +2319,7 @@ async function handlePolylineEditGesture(sx, sy, { persist = false, allowBelow3 
     if (persist) await persistEditingPolygon();
     refreshActualPourDrawingUi();
     updateNewZoneButton();
+    updateDrawFloatingActions();
     draw2D();
     showToast(`절점 ${hitIdx+1} 삭제됨`, 'success');
     return true;
@@ -1432,6 +2341,7 @@ async function handlePolylineEditGesture(sx, sy, { persist = false, allowBelow3 
       if (persist) await persistEditingPolygon();
       refreshActualPourDrawingUi();
       updateNewZoneButton();
+      updateDrawFloatingActions();
       draw2D();
       showToast(`선분 ${i+1}-${j+1} 사이에 점 추가됨 (${STATE.drawingPoints.length}점)`, 'success');
       return true;
@@ -1443,6 +2353,16 @@ async function handlePolylineEditGesture(sx, sy, { persist = false, allowBelow3 
 canvas2d.addEventListener('mousedown', e => {
   if (STATE.tool === 'pan' || e.button === 1) {
     isPanning2D = true; panStart = {x:e.offsetX, y:e.offsetY}; return;
+  }
+  if (STATE.tool === 'draw-strength') {
+    const w = screenToWorld(e.offsetX, e.offsetY);
+    STATE.drawingPoints.push(w);
+    STATE.isDrawing = true;
+    STATE.drawingStrengthZone = true;
+    updateStrengthZoneButton();
+    updateDrawFloatingActions();
+    requestDraw2D();
+    return;
   }
   if (STATE.tool === 'draw') {
     const hitIdx = findDrawingVertexAt(e.offsetX, e.offsetY);
@@ -1456,9 +2376,20 @@ canvas2d.addEventListener('mousedown', e => {
     STATE.isDrawing = true;
     refreshActualPourDrawingUi();
     updateNewZoneButton();
-    draw2D();
+    requestDraw2D();
   }
   if (STATE.tool === 'select' && e.button === 0) {
+    // 강도구역 윤곽 편집 중 — 타설구역 선택 방지, 꼭짓점만 조작
+    if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id && STATE.drawingPoints.length > 0) {
+      for (let i = 0; i < STATE.drawingPoints.length; i++) {
+        const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
+        if (Math.sqrt((p.x-e.offsetX)**2 + (p.y-e.offsetY)**2) <= VERTEX_HIT_RADIUS) {
+          STATE.draggingVertex = i;
+          return;
+        }
+      }
+      return;
+    }
     // 현재 그리고 있는 폴리곤 꼭짓점 드래그 체크
     if (STATE.drawingPoints.length > 0) {
       for (let i = 0; i < STATE.drawingPoints.length; i++) {
@@ -1517,7 +2448,8 @@ canvas2d.addEventListener('mousemove', e => {
     if (canPlaceDrawingPoint(w)) {
       STATE.drawingPoints[STATE.draggingVertex] = w;
     }
-    draw2D();
+    updateDrawFloatingActions();
+    requestDraw2D();
     return;
   }
   if (isPanning2D) {
@@ -1526,7 +2458,8 @@ canvas2d.addEventListener('mousemove', e => {
     view2d.cx -= dx / view2d.scale;
     view2d.cy += dy / view2d.scale;
     panStart = {x:e.offsetX, y:e.offsetY};
-    draw2D();
+    markViewInteracting();
+    requestDraw2D();
     return;
   }
   const w = screenToWorld(e.offsetX, e.offsetY);
@@ -1544,8 +2477,11 @@ canvas2d.addEventListener('mouseup', async () => {
 canvas2d.addEventListener('dblclick', async e => {
   const sx = e.offsetX, sy = e.offsetY;
   if (STATE.drawingPoints.length >= 2) {
+    const persistOutline = STATE.tool === 'select'
+      && (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id
+        || STATE.editTarget.type === 'zone' && STATE.selectedZone);
     const handled = await handlePolylineEditGesture(sx, sy, {
-      persist: STATE.tool === 'select',
+      persist: persistOutline,
       allowBelow3: STATE.tool === 'draw',
       radius: VERTEX_HIT_RADIUS
     });
@@ -1553,6 +2489,17 @@ canvas2d.addEventListener('dblclick', async e => {
   }
 
   // 그리기 모드: 폴리라인 완성
+  if (STATE.drawingPoints.length >= 3) {
+    if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id) {
+      const sz = STATE.strengthZones.find(z => z.id === STATE.editTarget.id);
+      if (sz) showStrengthZoneModal(sz);
+      return;
+    }
+    if (STATE.tool === 'draw-strength') {
+      showStrengthZoneModal();
+      return;
+    }
+  }
   if (STATE.tool === 'draw' && STATE.drawingPoints.length >= 3) {
     STATE.isDrawing = false;
     const saveTarget = STATE.editTarget.type === 'actual-new' ? '타설차수의 저장 버튼' : '"새 구역" 버튼';
@@ -1583,8 +2530,9 @@ function pointInPolygon(pt, polygon) {
   return inside;
 }
 
-// Keyboard: Del key to delete selected zone or drawing points
+// Keyboard: Del key to delete selected zone or drawing points (입력 중에는 무시)
 document.addEventListener('keydown', async (e) => {
+  if (isTypingInForm()) return;
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (STATE.editTarget.type === 'actual' && STATE.editTarget.id) {
       await fetch(`/actual-pours/${STATE.editTarget.id}`, { method: 'DELETE' });
@@ -1607,23 +2555,39 @@ document.addEventListener('keydown', async (e) => {
       loadZones();
       draw2D();
       showToast(`"${name}" 구역 삭제됨`, 'success');
-    } else if (STATE.drawingPoints.length > 0) {
+    } else if (STATE.drawingPoints.length > 0 && STATE.editTarget.type === 'strength-zone') {
+      cancelStrengthZoneEdit(true);
+      showToast('강도구역 편집 취소됨', 'success');
+    } else if (STATE.drawingPoints.length > 0 && !STATE.selectedZone && STATE.tool === 'draw-strength') {
       STATE.drawingPoints = [];
       STATE.isDrawing = false;
+      STATE.drawingStrengthZone = false;
+      updateStrengthZoneButton();
+      updateDrawFloatingActions();
       draw2D();
-      showToast('그리기 폴리라인 삭제됨', 'success');
+      showToast('강도구역 선분 삭제됨', 'success');
     }
   }
-  // Esc: 선택 해제
+  // Esc: 모달 닫기 또는 선택 해제
   if (e.key === 'Escape') {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+      modal.remove();
+      return;
+    }
     STATE.selectedZone = null;
     STATE.editingActual = false;
     STATE.editTarget = { type: 'zone', id: null };
     selectedActualPourId = null;
     STATE.drawingPoints = [];
     STATE.isDrawing = false;
+    STATE.drawingStrengthZone = false;
     clearZone3DHighlight();
     renderZoneList();
+    renderStrengthZoneList();
+    updateStrengthZoneButton();
+    updateDrawFloatingActions();
+    setActiveTool('select');
     draw2D();
   }
 });
@@ -1639,12 +2603,113 @@ canvas2d.addEventListener('contextmenu', e => {
 
 canvas2d.addEventListener('wheel', e => {
   e.preventDefault();
+  const mx = e.offsetX;
+  const my = e.offsetY;
+  const before = screenToWorld(mx, my);
   const factor = e.deltaY > 0 ? 0.9 : 1.1;
   view2d.scale *= factor;
   view2d.scale = Math.max(0.001, Math.min(100, view2d.scale));
+  const after = screenToWorld(mx, my);
+  view2d.cx += before.x - after.x;
+  view2d.cy += before.y - after.y;
   document.getElementById('status-zoom').textContent = `줌: ${Math.round(view2d.scale * 100)}%`;
-  draw2D();
+  markViewInteracting();
+  requestDraw2D();
 });
+
+let draw2dRAF = null;
+function requestDraw2D() {
+  if (draw2dRAF) return;
+  draw2dRAF = requestAnimationFrame(() => { draw2dRAF = null; draw2D(); });
+}
+
+document.getElementById('btn-finish-draw').onclick = () => {
+  if (STATE.drawingPoints.length < 3) return;
+  if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id) {
+    const sz = STATE.strengthZones.find(z => z.id === STATE.editTarget.id);
+    if (sz) showStrengthZoneModal(sz);
+    return;
+  }
+  if (STATE.tool === 'draw-strength' && STATE.drawingStrengthZone) {
+    showStrengthZoneModal();
+  }
+};
+
+document.getElementById('btn-cancel-draw').onclick = () => {
+  if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id) {
+    cancelStrengthZoneEdit(true);
+    showToast('강도구역 편집 취소됨', 'success');
+    return;
+  }
+  STATE.drawingPoints = [];
+  STATE.isDrawing = false;
+  STATE.drawingStrengthZone = false;
+  STATE.editTarget = { type: 'zone', id: null };
+  setActiveTool('select');
+  updateStrengthZoneButton();
+  draw2D();
+};
+
+function initViewportSplitter() {
+  const split = document.getElementById('viewport-split');
+  const resizer = document.getElementById('viewport-resizer');
+  const v2d = document.getElementById('view2d-container');
+  const v3d = document.getElementById('view3d-container');
+  if (!split || !resizer || !v2d || !v3d) return;
+
+  const isStacked = () => window.innerWidth <= 768;
+
+  const applySplit = (ratio) => {
+    const r = Math.max(0.15, Math.min(0.85, ratio));
+    if (isStacked()) {
+      const splitH = split.clientHeight - resizer.clientHeight;
+      const h2 = Math.max(120, Math.round(splitH * r));
+      v2d.style.flex = 'none';
+      v3d.style.flex = 'none';
+      v2d.style.height = `${h2}px`;
+      v3d.style.height = `${Math.max(120, splitH - h2)}px`;
+      return;
+    }
+    v2d.style.height = '';
+    v3d.style.height = '';
+    v2d.style.flex = `${r} 1 0`;
+    v3d.style.flex = `${1 - r} 1 0`;
+  };
+
+  applySplit(parseFloat(localStorage.getItem('concast-split-ratio') || '0.5'));
+
+  let dragging = false;
+  resizer.addEventListener('mousedown', (e) => {
+    dragging = true;
+    resizer.classList.add('dragging');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = split.getBoundingClientRect();
+    const ratio = isStacked()
+      ? (e.clientY - rect.top) / rect.height
+      : (e.clientX - rect.left) / rect.width;
+    applySplit(ratio);
+    handleResize();
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    const rect = split.getBoundingClientRect();
+    if (isStacked()) {
+      const splitH = split.clientHeight - resizer.clientHeight;
+      if (splitH > 0) localStorage.setItem('concast-split-ratio', String(v2d.clientHeight / splitH));
+    } else if (rect.width > 0) {
+      localStorage.setItem('concast-split-ratio', String(v2d.getBoundingClientRect().width / rect.width));
+    }
+    handleResize();
+  });
+  window.addEventListener('resize', () => {
+    applySplit(parseFloat(localStorage.getItem('concast-split-ratio') || '0.5'));
+  });
+}
 
 // ===================== TOUCH EVENTS (2D Canvas) =====================
 const TOUCH_LONG_PRESS_MS = 550;
@@ -1653,12 +2718,13 @@ let touchState = { lastDist: 0, lastCenter: null, touching: false, startTime: 0,
 canvas2d.addEventListener('touchstart', e => {
   e.preventDefault();
   if (e.touches.length === 2) {
+    const rect = canvas2d.getBoundingClientRect();
     const dx = e.touches[1].clientX - e.touches[0].clientX;
     const dy = e.touches[1].clientY - e.touches[0].clientY;
     touchState.lastDist = Math.sqrt(dx*dx + dy*dy);
     touchState.lastCenter = {
-      x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-      y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+      y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top
     };
   } else if (e.touches.length === 1) {
     const rect = canvas2d.getBoundingClientRect();
@@ -1685,23 +2751,29 @@ canvas2d.addEventListener('touchstart', e => {
 canvas2d.addEventListener('touchmove', e => {
   e.preventDefault();
   if (e.touches.length === 2) {
+    const rect = canvas2d.getBoundingClientRect();
     const dx = e.touches[1].clientX - e.touches[0].clientX;
     const dy = e.touches[1].clientY - e.touches[0].clientY;
     const dist = Math.sqrt(dx*dx + dy*dy);
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
     if (touchState.lastDist > 0) {
+      const before = screenToWorld(cx, cy);
       const scale = dist / touchState.lastDist;
       view2d.scale *= scale;
       view2d.scale = Math.max(0.001, Math.min(100, view2d.scale));
+      const after = screenToWorld(cx, cy);
+      view2d.cx += before.x - after.x;
+      view2d.cy += before.y - after.y;
     }
-    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     if (touchState.lastCenter) {
       view2d.cx -= (cx - touchState.lastCenter.x) / view2d.scale;
       view2d.cy += (cy - touchState.lastCenter.y) / view2d.scale;
     }
     touchState.lastDist = dist;
     touchState.lastCenter = { x: cx, y: cy };
-    draw2D();
+    markViewInteracting();
+    requestDraw2D();
   } else if (e.touches.length === 1) {
     const rect = canvas2d.getBoundingClientRect();
     const tx = e.touches[0].clientX - rect.left;
@@ -1726,7 +2798,8 @@ canvas2d.addEventListener('touchmove', e => {
       view2d.cy += ddy / view2d.scale;
     }
     touchState.lastCenter = { x: tx, y: ty };
-    draw2D();
+    markViewInteracting();
+    requestDraw2D();
   }
 }, { passive: false });
 
@@ -1811,12 +2884,104 @@ canvas2d.addEventListener('touchend', async e => {
 // Tool buttons
 document.querySelectorAll('#draw-tools .tool-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.dataset.tool === 'draw-strength') {
+      STATE.drawingPoints = [];
+      STATE.drawingStrengthZone = true;
+      STATE.isDrawing = false;
+      STATE.editTarget = { type: 'strength-zone', id: null };
+    } else if (btn.dataset.tool !== 'draw') {
+      STATE.drawingStrengthZone = false;
+    }
     setActiveTool(btn.dataset.tool);
   });
 });
 
 // ===================== 3D VIEW =====================
 let scene3d, camera3d, renderer3d, controls3d, modelGroup, intersectGroup;
+
+const PART_3D_STYLE = {
+  '수평': { color: 0x22d3ee, opacity: 0.10, edge: true, edgeOpacity: 0.30, order: 0, depthWrite: false },
+  '벽체': { color: 0x3b82f6, opacity: 0.72, edge: true, edgeOpacity: 0.55, order: 2, depthWrite: true },
+  '기둥': { color: 0xa855f7, opacity: 0.85, edge: true, edgeOpacity: 0.62, order: 3, depthWrite: true },
+  '미분류': { color: 0x94a3b8, opacity: 0.55, edge: true, edgeOpacity: 0.42, order: 1, depthWrite: true },
+};
+
+function normalizePartTypeClient(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return '미분류';
+  if (t === '수평' || t.includes('수평') || /^h$|horizontal|slab/i.test(t)) return '수평';
+  if (t === '벽체' || t.includes('벽') || /^w$|wall/i.test(t)) return '벽체';
+  if (t === '기둥' || t.includes('기둥') || /^c$|column|col/i.test(t)) return '기둥';
+  return t;
+}
+
+function partStyle3D(partType) {
+  return PART_3D_STYLE[normalizePartTypeClient(partType)] || PART_3D_STYLE['미분류'];
+}
+
+function parseCssColor(str) {
+  if (!str) return null;
+  try {
+    const s = String(str).trim();
+    const hm = s.match(/^hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%/i);
+    if (hm) {
+      const c = new THREE.Color();
+      c.setHSL(parseFloat(hm[1]) / 360, parseFloat(hm[2]) / 100, parseFloat(hm[3]) / 100);
+      return c;
+    }
+    return new THREE.Color(s);
+  } catch (e) {
+    return null;
+  }
+}
+
+function memberBodyColor3D(part, strength, serverColor) {
+  const parsed = parseCssColor(serverColor);
+  if (parsed) return parsed;
+  const style = partStyle3D(part);
+  return new THREE.Color(style.color);
+}
+
+function memberEdgeColor3D(part, strength, serverColor) {
+  const base = memberBodyColor3D(part, strength, serverColor);
+  const style = partStyle3D(part);
+  const edgeCol = new THREE.Color(style.color);
+  edgeCol.lerp(base, 0.72);
+  return edgeCol;
+}
+
+function restoreMemberMeshStyle(mesh) {
+  const ud = mesh.userData;
+  if (!mesh.material || !ud.baseColor) return;
+  mesh.material.color.copy(ud.baseColor);
+  mesh.material.opacity = ud.baseOpacity;
+  mesh.material.transparent = ud.baseOpacity < 1;
+  mesh.material.depthWrite = ud.depthWrite !== false;
+  mesh.material.needsUpdate = true;
+  mesh.renderOrder = ud.renderOrder ?? 0;
+  if (ud.edgeLine) {
+    ud.edgeLine.visible = true;
+    if (ud.edgeLine.material) {
+      ud.edgeLine.material.opacity = ud.edgeOpacity ?? 0.55;
+      ud.edgeLine.material.needsUpdate = true;
+    }
+  }
+}
+
+function dimMemberMeshes(factor = 0.28) {
+  modelGroup.children.forEach(child => {
+    if (!child.isMesh || !child.material) return;
+    child.material.opacity = (child.userData.baseOpacity ?? 0.5) * factor;
+    child.material.transparent = true;
+    child.material.depthWrite = false;
+    child.material.needsUpdate = true;
+    child.renderOrder = 0;
+    if (child.userData.edgeLine) {
+      child.userData.edgeLine.material.opacity = 0.12;
+      child.userData.edgeLine.material.needsUpdate = true;
+    }
+  });
+}
 
 function init3D() {
   const container = document.getElementById('view3d-container');
@@ -1826,32 +2991,37 @@ function init3D() {
   scene3d = new THREE.Scene();
   scene3d.background = new THREE.Color(0x0f1520);
 
-  camera3d = new THREE.PerspectiveCamera(60, w/h, 0.1, 1000000);
-  camera3d.up.set(0, 0, 1);  // Z-up (라이노와 동일)
+  camera3d = new THREE.PerspectiveCamera(60, w / h, 1, 5000000);
+  camera3d.up.set(0, 0, 1);
   camera3d.position.set(50000, -50000, 30000);
 
-  renderer3d = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
+  renderer3d = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true, alpha: false });
   renderer3d.setSize(w, h);
-  renderer3d.setPixelRatio(window.devicePixelRatio);
+  renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer3d.sortObjects = true;
+  renderer3d.autoClear = true;
 
   controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
   controls3d.enableDamping = true;
-  controls3d.dampingFactor = 0.1;
+  controls3d.dampingFactor = 0.08;
   controls3d.screenSpacePanning = true;
+  controls3d.enablePan = true;
+  controls3d.enableRotate = true;
+  controls3d.enableZoom = true;
+  controls3d.rotateSpeed = 0.65;
+  controls3d.zoomSpeed = 1.2;
+  controls3d.panSpeed = 0.85;
+  controls3d.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
   controls3d.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene3d.add(ambient);
-  const dir1 = new THREE.DirectionalLight(0xffffff, 0.6);
-  dir1.position.set(1, 1, 1);
+  const dir1 = new THREE.DirectionalLight(0xffffff, 0.75);
+  dir1.position.set(1, -0.5, 1.2);
   scene3d.add(dir1);
-  const dir2 = new THREE.DirectionalLight(0x8888ff, 0.3);
-  dir2.position.set(-1, -0.5, 0.5);
+  const dir2 = new THREE.DirectionalLight(0xaaccff, 0.35);
+  dir2.position.set(-0.8, 0.6, 0.4);
   scene3d.add(dir2);
-
-  // Axis helper (X=red, Y=green, Z=blue)
-  const axisHelper = new THREE.AxesHelper(5000);
-  scene3d.add(axisHelper);
 
   modelGroup = new THREE.Group();
   intersectGroup = new THREE.Group();
@@ -1863,43 +3033,115 @@ function init3D() {
 
 function animate3d() {
   requestAnimationFrame(animate3d);
+  if (controls3d) controls3d.update();
+  if (renderer3d && scene3d && camera3d) renderer3d.render(scene3d, camera3d);
+}
+
+function fitCameraToModel(allMin, allMax) {
+  const center = new THREE.Vector3(
+    (allMin[0] + allMax[0]) / 2,
+    (allMin[1] + allMax[1]) / 2,
+    (allMin[2] + allMax[2]) / 2
+  );
+  const sizeX = allMax[0] - allMin[0];
+  const sizeY = allMax[1] - allMin[1];
+  const sizeZ = allMax[2] - allMin[2];
+  const maxSize = Math.max(sizeX, sizeY, sizeZ, 1000);
+
+  camera3d.near = Math.max(maxSize * 0.002, 50);
+  camera3d.far = maxSize * 80;
+  camera3d.updateProjectionMatrix();
+
+  camera3d.position.set(
+    center.x + maxSize * 0.85,
+    center.y - maxSize * 0.85,
+    center.z + maxSize * 0.55
+  );
+  controls3d.target.copy(center);
+  controls3d.minDistance = maxSize * 0.05;
+  controls3d.maxDistance = maxSize * 12;
   controls3d.update();
-  renderer3d.render(scene3d, camera3d);
+}
+
+function addMemberMesh3D(obj) {
+  const geom = new THREE.BufferGeometry();
+  const verts = new Float32Array(obj.vertices.flat());
+  geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+
+  const indices = [];
+  obj.faces.forEach(f => { indices.push(f[0], f[1], f[2]); });
+  geom.setIndex(indices);
+
+  if (obj.normals && obj.normals.length === obj.vertices.length) {
+    const norms = new Float32Array(obj.normals.flat());
+    geom.setAttribute('normal', new THREE.BufferAttribute(norms, 3));
+  } else {
+    geom.computeVertexNormals();
+  }
+
+  const part = normalizePartTypeClient(obj.part_type);
+  const style = partStyle3D(part);
+  const bodyCol = memberBodyColor3D(part, obj.strength, obj.color);
+  const isTransparent = style.opacity < 0.99;
+  const mat = new THREE.MeshPhongMaterial({
+    color: bodyCol,
+    transparent: isTransparent,
+    opacity: style.opacity,
+    side: THREE.DoubleSide,
+    depthWrite: style.depthWrite !== false,
+    depthTest: true,
+    shininess: 30,
+    flatShading: false,
+  });
+
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.renderOrder = style.order;
+  mesh.userData = {
+    part_type: part,
+    strength: obj.strength,
+    orientation: obj.orientation,
+    baseColor: bodyCol.clone(),
+    baseOpacity: style.opacity,
+    depthWrite: style.depthWrite !== false,
+    renderOrder: style.order,
+    isMember: true,
+  };
+
+  if (style.edge) {
+    const edgeCol = memberEdgeColor3D(part, obj.strength, obj.color);
+    const eOp = style.edgeOpacity ?? 0.55;
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: edgeCol, transparent: eOp < 0.99, opacity: eOp, depthTest: true, depthWrite: false,
+    });
+    const edgeLine = new THREE.LineSegments(new THREE.EdgesGeometry(geom), edgeMat);
+    edgeLine.renderOrder = style.order + 1;
+    edgeLine.userData = { isMemberEdge: true, part_type: part };
+    mesh.userData.edgeLine = edgeLine;
+    mesh.userData.edgeOpacity = eOp;
+    modelGroup.add(edgeLine);
+  }
+
+  modelGroup.add(mesh);
+  return mesh;
 }
 
 function render3DModel(data) {
   while (modelGroup.children.length) modelGroup.remove(modelGroup.children[0]);
+  while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
 
   if (!data.objects || data.objects.length === 0) return;
 
-  const material = new THREE.MeshPhongMaterial({
-    color: 0x94a3b8, transparent: true, opacity: 0.25,
-    side: THREE.DoubleSide, depthWrite: false,
-    polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2
+  const sorted = [...data.objects].sort((a, b) => {
+    const pa = partStyle3D(a.part_type).order;
+    const pb = partStyle3D(b.part_type).order;
+    return pa - pb;
   });
 
   let allMin = [Infinity, Infinity, Infinity];
   let allMax = [-Infinity, -Infinity, -Infinity];
 
-  data.objects.forEach(obj => {
-    const geom = new THREE.BufferGeometry();
-    const verts = new Float32Array(obj.vertices.flat());
-    geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-
-    const indices = [];
-    obj.faces.forEach(f => { indices.push(f[0], f[1], f[2]); });
-    geom.setIndex(indices);
-
-    if (obj.normals && obj.normals.length === obj.vertices.length) {
-      const norms = new Float32Array(obj.normals.flat());
-      geom.setAttribute('normal', new THREE.BufferAttribute(norms, 3));
-    } else {
-      geom.computeVertexNormals();
-    }
-
-    const mesh = new THREE.Mesh(geom, material);
-    modelGroup.add(mesh);
-
+  sorted.forEach(obj => {
+    addMemberMesh3D(obj);
     obj.vertices.forEach(v => {
       allMin[0] = Math.min(allMin[0], v[0]);
       allMin[1] = Math.min(allMin[1], v[1]);
@@ -1910,18 +3152,7 @@ function render3DModel(data) {
     });
   });
 
-  // Z-up 카메라 위치 설정 (라이노와 동일한 뷰)
-  const center = new THREE.Vector3(
-    (allMin[0]+allMax[0])/2, (allMin[1]+allMax[1])/2, (allMin[2]+allMax[2])/2
-  );
-  const sizeX = allMax[0]-allMin[0];
-  const sizeY = allMax[1]-allMin[1];
-  const sizeZ = allMax[2]-allMin[2];
-  const maxSize = Math.max(sizeX, sizeY, sizeZ);
-
-  camera3d.position.set(center.x + maxSize*0.7, center.y - maxSize*0.7, center.z + maxSize*0.5);
-  controls3d.target.copy(center);
-  controls3d.update();
+  fitCameraToModel(allMin, allMax);
 }
 
 function renderZonesOn2D() { draw2D(); }
@@ -1977,18 +3208,18 @@ function highlightZone3D(zone) {
   const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
   intersectGroup.add(edgeLine);
 
-  // 원본 모델을 회색 반투명으로 (z-fighting 방지)
+  // 구역 선택 시 배경 모델은 어둡게, 색상은 유지
   modelGroup.children.forEach(child => {
-    if (child.material) {
-      child.material.color.set(0x666666);
-      child.material.opacity = 0.08;
+    if (child.isMesh && child.userData.isMember) {
+      const ud = child.userData;
+      child.material.opacity = (ud.baseOpacity ?? 0.5) * 0.25;
       child.material.transparent = true;
       child.material.depthWrite = false;
-      child.material.polygonOffset = true;
-      child.material.polygonOffsetFactor = 4;
-      child.material.polygonOffsetUnits = 4;
       child.material.needsUpdate = true;
-      child.renderOrder = 1;
+      if (child.userData.edgeLine) {
+        child.userData.edgeLine.material.opacity = 0.12;
+        child.userData.edgeLine.material.needsUpdate = true;
+      }
     }
   });
 }
@@ -2003,18 +3234,34 @@ function renderIntersectionMesh(meshData) {
 
   if (!meshData || meshData.length === 0) return;
 
-  const material = new THREE.MeshPhongMaterial({
-    color: 0x2196f3, transparent: false, opacity: 1,
-    side: THREE.DoubleSide, shininess: 90,
-    polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8,
-    depthTest: true, depthWrite: true
-  });
-  const edgeMaterial = new THREE.LineBasicMaterial({
-    color: 0x7dd3fc, transparent: true, opacity: 0.45,
-    depthTest: true, depthWrite: false
-  });
-
   meshData.forEach(obj => {
+    const part = normalizePartTypeClient(obj.part_type);
+    const style = partStyle3D(part);
+    const colHex = obj.color || `#${style.color.toString(16).padStart(6, '0')}`;
+    const bodyCol = memberBodyColor3D(part, obj.strength, colHex);
+    const bodyOpacity = style.opacity;
+    const isTransparent = bodyOpacity < 0.99;
+    const material = new THREE.MeshPhongMaterial({
+      color: bodyCol,
+      transparent: isTransparent,
+      opacity: bodyOpacity,
+      side: THREE.DoubleSide,
+      shininess: part === '수평' ? 28 : 90,
+      polygonOffset: part !== '수평',
+      polygonOffsetFactor: part !== '수평' ? -8 : 0,
+      polygonOffsetUnits: part !== '수평' ? -8 : 0,
+      depthTest: true,
+      depthWrite: style.depthWrite !== false,
+    });
+    const eOp = style.edgeOpacity ?? 0.55;
+    const edgeMaterial = new THREE.LineBasicMaterial({
+      color: memberEdgeColor3D(part, obj.strength, colHex),
+      transparent: eOp < 0.99,
+      opacity: eOp,
+      depthTest: true,
+      depthWrite: false,
+    });
+
     const geom = new THREE.BufferGeometry();
     const verts = new Float32Array(obj.vertices.flat());
     geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
@@ -2025,46 +3272,30 @@ function renderIntersectionMesh(meshData) {
     geom.computeVertexNormals();
 
     const mesh = new THREE.Mesh(geom, material);
-    mesh.renderOrder = 10;
-    mesh.userData = { isIntersection: true };
+    mesh.renderOrder = (style.order ?? 1) + 8;
+    mesh.userData = {
+      isIntersection: true,
+      strength: obj.strength,
+      part_type: part,
+      baseOpacity: bodyOpacity,
+      depthWrite: style.depthWrite !== false,
+    };
     intersectGroup.add(mesh);
 
     const edgeLine = new THREE.LineSegments(new THREE.EdgesGeometry(geom), edgeMaterial);
-    edgeLine.renderOrder = 11;
-    edgeLine.userData = { isIntersection: true };
+    edgeLine.renderOrder = (style.order ?? 1) + 9;
+    edgeLine.userData = { isIntersection: true, part_type: part };
     intersectGroup.add(edgeLine);
   });
 
-  // 원본 모델을 회색 반투명으로 (z-fighting 방지)
-  modelGroup.children.forEach(child => {
-    if (child.material) {
-      child.material.color.set(0x666666);
-      child.material.opacity = 0.08;
-      child.material.transparent = true;
-      child.material.depthWrite = false;
-      child.material.polygonOffset = true;
-      child.material.polygonOffsetFactor = 4;
-      child.material.polygonOffsetUnits = 4;
-      child.material.needsUpdate = true;
-      child.renderOrder = 1;
-    }
-  });
+  // 원본 모델은 살짝만 어둡게 — 부위 색상 유지
+  dimMemberMeshes(0.32);
 }
 
 function clearZone3DHighlight() {
   while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
   modelGroup.children.forEach(child => {
-    if (child.material) {
-      child.material.color.set(0x90a4ae);
-      child.material.opacity = 0.25;
-      child.material.transparent = true;
-      child.material.depthWrite = false;
-      child.material.polygonOffset = true;
-      child.material.polygonOffsetFactor = 2;
-      child.material.polygonOffsetUnits = 2;
-      child.material.needsUpdate = true;
-      child.renderOrder = 0;
-    }
+    if (child.isMesh && child.userData.isMember) restoreMemberMeshStyle(child);
   });
 }
 
@@ -2123,6 +3354,18 @@ async function saveActualPourPolygon(pourId, polygon) {
 async function persistEditingPolygon() {
   if (STATE.drawingPoints.length < 3) return;
   const polygon = STATE.drawingPoints.map(p => ({x:p.x, y:p.y}));
+  if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id) {
+    const sz = STATE.strengthZones.find(z => z.id === STATE.editTarget.id);
+    if (sz) sz.polygon = polygon;
+    try {
+      await fetch(`/strength-zones/${STATE.editTarget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ polygon }),
+      });
+    } catch (e) { console.warn('강도구역 윤곽 저장 실패:', e); }
+    return;
+  }
   if (STATE.editTarget.type === 'zone' && STATE.selectedZone) {
     STATE.selectedZone.polygon = polygon;
     await saveZonePolygon(STATE.selectedZone.id, polygon);
@@ -2137,6 +3380,13 @@ async function persistEditingPolygon() {
 }
 
 async function runCalculation(zoneId) {
+  const col = STATE.defaultStrengths['기둥'];
+  const wall = STATE.defaultStrengths['벽체'];
+  if (!col || !wall) {
+    expandSidebarSection('def-strength');
+    showToast('먼저 사이드바에서 기둥·벽체 기본 강도를 저장하세요', 'error');
+    return;
+  }
   const calcOverlay = showCalcOverlay('체적 산출 준비 중', '요청 접수', '버튼 입력 확인됨. 계산 준비 중...', 3);
   await waitForPaint();
 
@@ -2186,7 +3436,7 @@ async function runCalculation(zoneId) {
         const r = s.result;
         dirtyZoneOutlines.delete(zoneId);
         updateMobileZoneActions();
-        showToast(`체적: ${r.volume.toFixed(2)} m³ → 레미콘 ${Math.ceil(r.volume/6)}대 (${r.elapsed_time}초)`, 'success');
+        showToast(`체적: ${r.volume.toFixed(2)} m³ (수평 ${(r.volume_horizontal||0).toFixed(1)} / 수직 ${(r.volume_vertical||0).toFixed(1)}) → ${Math.ceil(r.volume/6)}대`, 'success');
         // 교집합 메시가 있으면 3D 뷰어에 렌더링
         if (r.intersection_mesh && r.intersection_mesh.length > 0) {
           renderIntersectionMesh(r.intersection_mesh);
@@ -2221,10 +3471,13 @@ function showToast(msg, type='success') {
 function handleResize() {
   resize2D();
   const cont = document.getElementById('view3d-container');
-  if (renderer3d) {
-    renderer3d.setSize(cont.clientWidth, cont.clientHeight);
-    camera3d.aspect = cont.clientWidth / cont.clientHeight;
+  if (renderer3d && camera3d && cont) {
+    const w = cont.clientWidth;
+    const h = cont.clientHeight;
+    renderer3d.setSize(w, h);
+    camera3d.aspect = w / h;
     camera3d.updateProjectionMatrix();
+    if (controls3d) controls3d.update();
   }
 }
 window.addEventListener('resize', handleResize);
@@ -2291,6 +3544,7 @@ document.getElementById('btn-new-project').addEventListener('click', async () =>
 async function loadProjectData() {
   STATE.floors = [];
   STATE.uploadedFloors = {};
+  previewCache.clear();
   try {
     const res = await fetch(`/floors/${encodeURIComponent(STATE.projectName)}`);
     if (res.ok) {
@@ -2304,6 +3558,7 @@ async function loadProjectData() {
     STATE.activeFloor = STATE.floors[0] || '';
   }
   renderFloorChips();
+  ensurePreviewCachesBackground(STATE.projectName);
   if (STATE.uploadedFloors[STATE.activeFloor]) {
     loadFloorData();
   } else {
@@ -2327,6 +3582,8 @@ async function init() {
   renderFloorChips();
   resize2D();
   init3D();
+  initViewportSplitter();
+  initSidebarCollapsibles();
 
   try {
     const ei = await fetch('/engine-info');
@@ -2338,6 +3595,7 @@ async function init() {
   } catch(e) {}
 
   await loadProjectList();
+  await loadProjectStrengths();
   if (STATE.projectName) {
     loadProjectData();
   }
