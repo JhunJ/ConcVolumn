@@ -27,8 +27,33 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 
 /* Sidebar */
 #sidebar { width: var(--sidebar-w); background: var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; height:100vh; min-height:0; flex-shrink:0; }
-#sidebar h1 { font-size:14px; padding:16px; border-bottom:1px solid var(--border); background: linear-gradient(135deg, var(--primary), #8b5cf6); color:#fff; flex-shrink:0; }
+#sidebar h1 { font-size:14px; padding:14px 16px; border-bottom:1px solid var(--border); background: linear-gradient(135deg, var(--primary), #8b5cf6); color:#fff; flex-shrink:0; }
+.sidebar-tab-bar {
+  display:grid; grid-template-columns:1fr 1fr; gap:0; flex-shrink:0;
+  border-bottom:1px solid var(--border); background:rgba(15,23,42,0.35);
+}
+.sidebar-tab {
+  padding:10px 8px; border:none; background:transparent; color:var(--text2);
+  font-size:10px; font-weight:600; letter-spacing:0.02em; cursor:pointer;
+  border-bottom:2px solid transparent; transition:color .15s, background .15s, border-color .15s;
+  line-height:1.25;
+}
+.sidebar-tab:hover { color:var(--text); background:rgba(59,130,246,0.06); }
+.sidebar-tab.active { color:#fff; background:rgba(59,130,246,0.18); border-bottom-color:var(--primary); }
+.sidebar-panels { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
+.sidebar-panel { display:none; flex:1; min-height:0; overflow:hidden; flex-direction:column; }
+.sidebar-panel.active { display:flex; }
+.sidebar-panel-scroll { flex:1; min-height:0; overflow-y:auto; scrollbar-gutter:stable; padding:12px 16px; }
+.sidebar-panel-zones .sidebar-panel-scroll { padding:10px 12px; display:flex; flex-direction:column; gap:0; }
+.sidebar-sub-block { padding:10px 0; border-bottom:1px solid var(--border); flex-shrink:0; }
+.sidebar-sub-block.grow { flex:1; min-height:0; display:flex; flex-direction:column; border-bottom:none; padding-bottom:0; }
+.sidebar-sub-block.grow #zone-list { flex:1; min-height:120px; overflow-y:auto; scrollbar-gutter:stable; }
+.sidebar-sub-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.sidebar-sub-head .section-title { margin-bottom:0; }
+.sidebar-hint { font-size:9px; color:var(--text2); margin-bottom:8px; line-height:1.4; }
+.info-summary-note { font-size:10px; color:var(--text2); margin:8px 0 10px; line-height:1.45; padding:8px 10px; background:rgba(59,130,246,0.08); border-radius:6px; border:1px solid rgba(59,130,246,0.2); }
 .section { padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.sidebar-panel .section { padding:0; border-bottom:none; }
 .section-title { font-size:11px; text-transform:uppercase; color:var(--text2); letter-spacing:0.5px; margin-bottom:8px; font-weight:600; }
 .section-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .section-header .section-title { margin-bottom:0; }
@@ -46,13 +71,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .section-toggle:hover { color:var(--text); }
 .section-collapsible:not(.collapsed) .section-toggle { transform:rotate(90deg); }
 .section-title-flex { flex:1; min-width:0; }
-.section-zone-list {
-  flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden;
-  border-bottom:none; padding-bottom:12px;
-}
-.section-zone-list .section-header { flex-shrink:0; margin-bottom:8px; }
 #zone-list {
-  flex:1; min-height:0; overflow-y:auto;
+  overflow-y:auto;
   scrollbar-gutter:stable;
 }
 @supports not (scrollbar-gutter: stable) {
@@ -315,6 +335,7 @@ textarea { resize:vertical; min-height:40px; }
 .legend-bar { display:flex; flex-wrap:wrap; gap:6px; padding:4px 0; font-size:9px; color:var(--text2); }
 .legend-dot { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:3px; }
 #member-panel { max-height:220px; overflow-y:auto; scrollbar-gutter:stable; }
+.sidebar-panel[data-panel="info"] #member-panel { max-height:none; }
 
 /* Toast */
 .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:var(--radius); color:#fff; font-size:12px; z-index:9999; animation:fadeIn .3s; }
@@ -363,7 +384,7 @@ textarea { resize:vertical; min-height:40px; }
   body { flex-direction: column; overflow: auto; height: auto; min-height:100vh; }
   #sidebar { width:100%; max-height:none; height:auto; border-right:none; border-bottom:2px solid var(--border); display:none; overflow:hidden; }
   #sidebar.open { display:flex; max-height:min(85vh, 720px); }
-  .section-zone-list { min-height:180px; flex:1; }
+  .sidebar-panel-zones .sidebar-sub-block.grow { min-height:140px; }
   #sidebar h1 { font-size:13px; padding:12px; }
   .section { padding:10px 12px; }
   #sidebar-toggle { display:flex; align-items:center; justify-content:center; }
@@ -409,88 +430,100 @@ textarea { resize:vertical; min-height:40px; }
 <div id="sidebar">
   <h1>ConCast - 타설 물량 관리</h1>
 
-  <div class="section">
-    <div class="section-title">프로젝트</div>
-    <div style="display:flex;gap:4px;align-items:center">
-      <select id="project-select" style="flex:1;margin-bottom:0"></select>
-      <button class="btn btn-sm btn-primary" id="btn-new-project" style="height:32px;margin-bottom:0">+</button>
-    </div>
-  </div>
+  <nav class="sidebar-tab-bar" id="sidebar-tab-bar" aria-label="사이드바 메뉴">
+    <button type="button" class="sidebar-tab" data-tab="upload">업로드 및 설정</button>
+    <button type="button" class="sidebar-tab" data-tab="settings">설정</button>
+    <button type="button" class="sidebar-tab active" data-tab="zones">구역</button>
+    <button type="button" class="sidebar-tab" data-tab="info">설명</button>
+  </nav>
 
-  <div class="section">
-    <div class="section-title">층 관리</div>
-    <div class="floor-chips" id="floor-chips"></div>
-    <div style="font-size:9px;color:var(--text2);margin-bottom:4px">업로드된 층만 선택 가능 | 더블클릭: 이름변경 | 우클릭: 삭제</div>
-    <button class="btn btn-sm" id="btn-add-floor" style="margin-bottom:6px;background:var(--surface2);color:var(--text2);border:1px dashed var(--border);width:100%">선택 층 이름 수정</button>
-    <input type="file" id="floor-file" accept=".3dm" style="display:none">
-    <button class="btn btn-primary btn-block btn-sm" id="btn-upload-floor">.3dm 업로드 / 층 추가</button>
-  </div>
-
-  <div class="section section-collapsible collapsed" data-section="summary">
-    <div class="section-header section-header-toggle">
-      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
-      <div class="section-title section-title-flex">요약</div>
-    </div>
-    <div class="section-body">
-      <div class="summary-grid" id="summary-grid">
-        <div class="summary-card"><div class="num" id="sum-planned">0</div><div class="label">예정 구역</div></div>
-        <div class="summary-card"><div class="num" id="sum-completed">0</div><div class="label">완료 구역</div></div>
-        <div class="summary-card"><div class="num" id="sum-calc-vol">0</div><div class="label">산출 체적(m³)</div></div>
-        <div class="summary-card"><div class="num" id="sum-trucks">0</div><div class="label">레미콘 대수(6m³)</div></div>
+  <div class="sidebar-panels" id="sidebar-panels">
+    <!-- 업로드 및 설정: 프로젝트 · 층 · 모델 -->
+    <div class="sidebar-panel" data-panel="upload">
+      <div class="sidebar-panel-scroll">
+        <div class="section">
+          <div class="section-title">프로젝트</div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <select id="project-select" style="flex:1;margin-bottom:0"></select>
+            <button class="btn btn-sm btn-primary" id="btn-new-project" style="height:32px;margin-bottom:0">+</button>
+          </div>
+        </div>
+        <div class="section" style="margin-top:14px">
+          <div class="section-title">층 관리</div>
+          <div class="floor-chips" id="floor-chips"></div>
+          <div class="sidebar-hint">업로드된 층만 선택 · 더블클릭 이름변경 · 우클릭 삭제</div>
+          <button class="btn btn-sm" id="btn-add-floor" style="margin-bottom:6px;background:var(--surface2);color:var(--text2);border:1px dashed var(--border);width:100%">선택 층 이름 수정</button>
+          <input type="file" id="floor-file" accept=".3dm" style="display:none">
+          <button class="btn btn-primary btn-block btn-sm" id="btn-upload-floor">.3dm 업로드 / 층 추가</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="section section-collapsible collapsed" data-section="def-strength">
-    <div class="section-header section-header-toggle">
-      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
-      <div class="section-title section-title-flex">기본 강도 설정 (MPa)</div>
-    </div>
-    <div class="section-body">
-      <div style="font-size:9px;color:var(--text2);margin-bottom:6px">기둥·벽체·수평 기본값 — 프로젝트별로 직접 입력 후 저장</div>
-      <div class="strength-inputs">
-        <div><label>기둥</label><input type="number" id="def-str-col" placeholder="MPa" step="0.5" min="1"></div>
-        <div><label>벽체</label><input type="number" id="def-str-wall" placeholder="MPa" step="0.5" min="1"></div>
-        <div><label>수평</label><input type="number" id="def-str-h" placeholder="MPa" step="0.5" min="1"></div>
+    <!-- 설정: 기본 강도 -->
+    <div class="sidebar-panel" data-panel="settings">
+      <div class="sidebar-panel-scroll">
+        <div class="section">
+          <div class="section-title">기본 강도 (MPa)</div>
+          <div class="sidebar-hint">기둥·벽체·수평 기본값 — 프로젝트별 입력 후 저장</div>
+          <div class="strength-inputs">
+            <div><label>기둥</label><input type="number" id="def-str-col" placeholder="MPa" step="0.5" min="1"></div>
+            <div><label>벽체</label><input type="number" id="def-str-wall" placeholder="MPa" step="0.5" min="1"></div>
+            <div><label>수평</label><input type="number" id="def-str-h" placeholder="MPa" step="0.5" min="1"></div>
+          </div>
+          <button class="btn btn-sm btn-block" id="btn-save-strengths" style="background:var(--surface2);color:var(--text)">기본 강도 저장</button>
+        </div>
       </div>
-      <button class="btn btn-sm btn-block" id="btn-save-strengths" style="background:var(--surface2);color:var(--text)">기본 강도 저장</button>
     </div>
-  </div>
 
-  <div class="section section-collapsible collapsed" data-section="strength-zones">
-    <div class="section-header section-header-toggle">
-      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
-      <div class="section-title section-title-flex">추가 강도 구역 <span id="strength-zone-count" class="strength-zone-count"></span></div>
-      <button class="btn btn-sm" id="btn-new-strength-zone" style="background:#ef4444;color:#fff">+ 선분 그리기</button>
-    </div>
-    <div class="section-body">
-      <div style="font-size:9px;color:var(--text2);margin-bottom:6px">2D 클릭으로 점 추가 · 목록 ✎ 또는 이름 클릭으로 윤곽 수정 · 우측 상단 [저장]</div>
-      <div id="strength-zone-list"></div>
-    </div>
-  </div>
-
-  <div class="section section-collapsible collapsed" data-section="members">
-    <div class="section-header section-header-toggle">
-      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
-      <div class="section-title section-title-flex">부재 목록</div>
-      <button class="btn btn-sm" id="btn-resync-members" style="background:var(--surface2);color:var(--text2)">↻</button>
-    </div>
-    <div class="section-body">
-      <div class="legend-bar" id="strength-legend">
-      <span><span class="legend-dot" style="background:rgba(6,182,212,0.15)"></span>수평(청록·연한선)</span>
-      <span><span class="legend-dot" style="background:rgba(59,130,246,0.6)"></span>벽체(파랑계열·강도별)</span>
-      <span><span class="legend-dot" style="background:rgba(168,85,247,0.6)"></span>기둥(보라계열·강도별)</span>
+    <!-- 구역: 추가 강도 구역 + 타설 구역 목록 -->
+    <div class="sidebar-panel active sidebar-panel-zones" data-panel="zones">
+      <div class="sidebar-panel-scroll">
+        <div class="sidebar-sub-block section-collapsible collapsed" data-section="strength-zones">
+          <div class="sidebar-sub-head section-header-toggle">
+            <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
+            <div class="section-title section-title-flex">추가 강도 구역 <span id="strength-zone-count" class="strength-zone-count"></span></div>
+            <button class="btn btn-sm" id="btn-new-strength-zone" style="background:#ef4444;color:#fff">+ 선분</button>
+          </div>
+          <div class="section-body">
+            <div class="sidebar-hint">2D 클릭으로 점 추가 · ✎ 또는 이름 클릭으로 윤곽 수정</div>
+            <div id="strength-zone-list"></div>
+          </div>
+        </div>
+        <div class="sidebar-sub-block grow">
+          <div class="sidebar-sub-head">
+            <div class="section-title">구역 목록</div>
+            <button class="btn btn-sm btn-primary" id="btn-new-zone">+ 새 구역</button>
+          </div>
+          <div id="zone-list"></div>
+        </div>
       </div>
-      <div id="member-panel"></div>
     </div>
-  </div>
 
-  <div class="section section-zone-list">
-    <div class="section-header">
-      <div class="section-title">구역 목록</div>
-      <button class="btn btn-sm btn-primary" id="btn-new-zone">+ 새 구역</button>
+    <!-- 설명: 요약 + 부재 -->
+    <div class="sidebar-panel" data-panel="info">
+      <div class="sidebar-panel-scroll">
+        <div class="section">
+          <div class="section-title">층 요약</div>
+          <div class="summary-grid" id="summary-grid">
+            <div class="summary-card"><div class="num" id="sum-planned">0</div><div class="label">예정 구역</div></div>
+            <div class="summary-card"><div class="num" id="sum-completed">0</div><div class="label">완료 구역</div></div>
+            <div class="summary-card"><div class="num" id="sum-calc-vol">0</div><div class="label">산출 m³</div></div>
+            <div class="summary-card"><div class="num" id="sum-trucks">0</div><div class="label">레미콘(6m³)</div></div>
+          </div>
+          <div class="info-summary-note">2D는 부재 외곽선·강도색, 3D는 부재×강도로 표시됩니다. 부재 강도는 아래에서 개별 수정할 수 있습니다.</div>
+          <div class="sidebar-sub-head" style="margin-top:4px">
+            <div class="section-title">부재 · 강도</div>
+            <button class="btn btn-sm" id="btn-resync-members" style="background:var(--surface2);color:var(--text2)" title="부재 재추출">↻</button>
+          </div>
+          <div class="legend-bar" id="strength-legend">
+            <span><span class="legend-dot" style="background:rgba(6,182,212,0.15)"></span>수평</span>
+            <span><span class="legend-dot" style="background:rgba(59,130,246,0.6)"></span>벽체</span>
+            <span><span class="legend-dot" style="background:rgba(168,85,247,0.6)"></span>기둥</span>
+          </div>
+          <div id="member-panel"></div>
+        </div>
+      </div>
     </div>
-    <div id="zone-list"></div>
   </div>
 </div>
 
@@ -683,6 +716,32 @@ function closeSidebarOnMobile() {
   }
 }
 
+function initSidebarTabs() {
+  const stored = localStorage.getItem('concast-sidebar-tab') || 'zones';
+  switchSidebarTab(stored);
+  document.querySelectorAll('.sidebar-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchSidebarTab(btn.dataset.tab));
+  });
+}
+
+function switchSidebarTab(tabId) {
+  if (!tabId) return;
+  document.querySelectorAll('.sidebar-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.sidebar-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.dataset.panel === tabId);
+  });
+  localStorage.setItem('concast-sidebar-tab', tabId);
+}
+
+const SIDEBAR_TAB_FOR_SECTION = {
+  'def-strength': 'settings',
+  'strength-zones': 'zones',
+  summary: 'info',
+  members: 'info',
+};
+
 function initSidebarCollapsibles() {
   document.querySelectorAll('.section-collapsible[data-section]').forEach(section => {
     const key = section.dataset.section;
@@ -709,6 +768,8 @@ function initSidebarCollapsibles() {
 }
 
 function expandSidebarSection(key) {
+  const tab = SIDEBAR_TAB_FOR_SECTION[key];
+  if (tab) switchSidebarTab(tab);
   const section = document.querySelector(`.section-collapsible[data-section="${key}"]`);
   if (!section) return;
   section.classList.remove('collapsed');
@@ -4461,6 +4522,7 @@ async function init() {
   resize2D();
   init3D();
   initViewportSplitter();
+  initSidebarTabs();
   initSidebarCollapsibles();
 
   try {
