@@ -3,7 +3,7 @@ ConCast - 콘크리트 타설 물량 관리 시스템
 Concrete Casting Volume Management
 """
 import gzip
-import os, json, sqlite3, time, threading, uuid, re, colorsys
+import os, json, sqlite3, time, threading, uuid, re, colorsys, math
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, List
@@ -35,6 +35,21 @@ PREVIEW_CACHE_DIR = BASE_DIR / "preview_cache"
 PREVIEW_CACHE_DIR.mkdir(exist_ok=True)
 PREVIEW_FMT_VERSION = 3
 DB_PATH = BASE_DIR / "concast.db"
+
+TRUCK_VOL_M3 = 6.0
+TRUCK_MIN_VOL_M3 = 3.0
+
+
+def trucks_from_volume(volume: float) -> float:
+    """레미콘 대수: 6m³/대, 0.5대 단위 올림, 3m³ 이하는 최소 0.5대."""
+    if volume <= 0:
+        return 0.0
+    trucks = volume / TRUCK_VOL_M3
+    trucks = math.ceil(trucks * 2 - 1e-9) / 2.0
+    if volume <= TRUCK_MIN_VOL_M3 and trucks < 0.5:
+        return 0.5
+    return trucks
+
 
 app = FastAPI(title="ConCast - 콘크리트 타설 물량 관리", version="4.0.0")
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -127,6 +142,8 @@ def init_db():
             polygon_json TEXT NOT NULL,
             pour_date TEXT,
             volume REAL DEFAULT 0,
+            volume_by_strength_json TEXT,
+            intersection_mesh_json TEXT,
             memo TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY (zone_id) REFERENCES pour_zones(id) ON DELETE CASCADE
@@ -145,10 +162,24 @@ def init_db():
         "ALTER TABLE floor_models ADD COLUMN preview_cache_json TEXT",
         "ALTER TABLE floor_models ADD COLUMN preview_cache_at TEXT",
         "ALTER TABLE floor_models ADD COLUMN preview_cache_file TEXT",
+        "ALTER TABLE actual_pours ADD COLUMN volume_by_strength_json TEXT",
+        "ALTER TABLE actual_pours ADD COLUMN intersection_mesh_json TEXT",
     ]
     for sql in migrations:
         try:
             conn.execute(sql)
+        except Exception:
+            pass
+    # 컬럼 누락 시 재시도 (구버전 actual_pours 테이블)
+    ap_cols = {r[1] for r in conn.execute("PRAGMA table_info(actual_pours)").fetchall()}
+    if "intersection_mesh_json" not in ap_cols:
+        try:
+            conn.execute("ALTER TABLE actual_pours ADD COLUMN intersection_mesh_json TEXT")
+        except Exception:
+            pass
+    if "volume_by_strength_json" not in ap_cols:
+        try:
+            conn.execute("ALTER TABLE actual_pours ADD COLUMN volume_by_strength_json TEXT")
         except Exception:
             pass
     conn.commit()
@@ -1235,6 +1266,17 @@ def list_actual_pours(zone_id: int):
         d = dict(r)
         d["polygon"] = json.loads(d["polygon_json"])
         del d["polygon_json"]
+        if d.get("volume_by_strength_json"):
+            d["volume_by_strength"] = json.loads(d["volume_by_strength_json"])
+        else:
+            d["volume_by_strength"] = {}
+        del d["volume_by_strength_json"]
+        d["has_intersection_mesh"] = bool(d.get("intersection_mesh_json"))
+        if d.get("intersection_mesh_json"):
+            d["intersection_mesh"] = json.loads(d["intersection_mesh_json"])
+        else:
+            d["intersection_mesh"] = []
+        del d["intersection_mesh_json"]
         result.append(d)
     return result
 
@@ -1310,7 +1352,18 @@ def calculate_actual_pour(pour_id: int):
         get_project_strengths(conn, row["project_id"]),
     )
     volume = float(result.get("volume", 0.0))
-    conn.execute("UPDATE actual_pours SET volume=? WHERE id=?", (volume, pour_id))
+    by_strength = result.get("by_strength", {})
+    intersection_mesh = result.get("intersection_mesh", [])
+    conn.execute(
+        """UPDATE actual_pours SET volume=?, volume_by_strength_json=?, intersection_mesh_json=?
+           WHERE id=?""",
+        (
+            volume,
+            json.dumps(by_strength, ensure_ascii=False),
+            json.dumps(intersection_mesh, ensure_ascii=False) if intersection_mesh else None,
+            pour_id,
+        ),
+    )
     conn.commit()
     conn.close()
     return {
@@ -1319,7 +1372,8 @@ def calculate_actual_pour(pour_id: int):
         "volume_horizontal": result.get("volume_horizontal", 0),
         "volume_vertical": result.get("volume_vertical", 0),
         "by_strength": result.get("by_strength", {}),
-        "trucks": int((volume / 6.0) + 0.9999) if volume > 0 else 0,
+        "intersection_mesh": intersection_mesh,
+        "trucks": trucks_from_volume(volume),
         "warnings": result.get("warnings", []),
     }
 

@@ -1139,24 +1139,53 @@ PART_3D_BASE = {
     "미분류": "#94a3b8",
 }
 
+# 부재(행) × 강도(열) — 부재 색상 계열 유지 + 강도별 명확한 차등
+MEMBER_COLOR_3D: dict = {
+    "수평": {21: "#67e8f9", 24: "#22d3ee", 27: "#06b6d4", 30: "#0891b2", 35: "#fde047", 40: "#facc15", 45: "#eab308"},
+    "벽체": {21: "#93c5fd", 24: "#3b82f6", 27: "#2563eb", 30: "#1d4ed8", 35: "#fb923c", 40: "#ea580c", 45: "#dc2626"},
+    "기둥": {21: "#d8b4fe", 24: "#a855f7", 27: "#9333ea", 30: "#7e22ce", 35: "#f97316", 40: "#ef4444", 45: "#e11d48"},
+    "미분류": {24: "#94a3b8", 35: "#78716c", 40: "#57534e"},
+}
+
+
+def _hex_to_rgb(hex_color: str) -> tuple:
+    h = hex_color.lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _lerp_hex(c0: str, c1: str, t: float) -> str:
+    t = max(0.0, min(1.0, t))
+    r0, g0, b0 = _hex_to_rgb(c0)
+    r1, g1, b1 = _hex_to_rgb(c1)
+    r = int(r0 + (r1 - r0) * t)
+    g = int(g0 + (g1 - g0) * t)
+    b = int(b0 + (b1 - b0) * t)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def resolve_member_color_3d(part_type: str, strength: Optional[float]) -> str:
+    """3D — 부재별 기본 계열 + 강도별 색 (서버·클라이언트 공통 규칙)"""
+    part = normalize_part_type(part_type)
+    row = MEMBER_COLOR_3D.get(part) or MEMBER_COLOR_3D["미분류"]
+    if strength is None:
+        return PART_3D_BASE.get(part, PART_3D_BASE["미분류"])
+    s = int(round(float(strength)))
+    if s in row:
+        return row[s]
+    keys = sorted(row.keys())
+    if s <= keys[0]:
+        return row[keys[0]]
+    if s >= keys[-1]:
+        return row[keys[-1]]
+    for i in range(len(keys) - 1):
+        lo, hi = keys[i], keys[i + 1]
+        if lo <= s <= hi:
+            return _lerp_hex(row[lo], row[hi], (s - lo) / (hi - lo))
+    return row[keys[-1]]
+
 
 def mesh_display_color(part_type: str, strength: Optional[float], orientation: str = "horizontal") -> str:
-    """3D 뷰 — 부위별 기본색, 강도가 있으면 hue 변화 (hex 반환 — Three.js 호환)"""
-    part = normalize_part_type(part_type)
-    base = PART_3D_BASE.get(part, PART_3D_BASE["미분류"])
-    if strength is None:
-        return base
-    s = int(round(strength))
-    if part == "수평":
-        hue = 185 + (s % 8) * 3
-        return _hsl_to_hex(hue, 75, 58)
-    if part == "벽체":
-        hue = 210 + (s % 10) * 4
-        return _hsl_to_hex(hue, 72, 55)
-    if part == "기둥":
-        hue = 270 + (s % 10) * 4
-        return _hsl_to_hex(hue, 68, 58)
-    return _hsl_to_hex((s * 47 + (30 if orientation == "vertical" else 0)) % 360, 68, 52)
+    return resolve_member_color_3d(part_type, strength)
 
 
 def _hsl_to_hex(h: float, s: float, l: float) -> str:
@@ -1181,12 +1210,14 @@ def _hsl_to_hex(h: float, s: float, l: float) -> str:
     return f"#{ri:02x}{gi:02x}{bi:02x}"
 
 
-def strength_color(strength: Optional[float], orientation: str = "horizontal") -> str:
+def strength_color(
+    strength: Optional[float], orientation: str = "horizontal", part_type: Optional[str] = None,
+) -> str:
     if strength is None:
         return "#64748b"
-    s = int(round(strength))
-    hue = (s * 47 + (30 if orientation == "vertical" else 0)) % 360
-    return f"hsl({hue}, 68%, 52%)"
+    if part_type:
+        return resolve_member_color_3d(part_type, strength)
+    return resolve_member_color_3d("벽체" if orientation == "vertical" else "수평", strength)
 
 
 def _read_object_user_strings(attributes) -> dict:
@@ -1282,6 +1313,7 @@ def resolve_member_strength(
 
     if strength_zones:
         cx, cy = centroid.get("x", 0), centroid.get("y", 0)
+        matched_strengths = []
         for zone in strength_zones:
             targets = zone.get("target_parts") or []
             if part not in targets:
@@ -1290,7 +1322,9 @@ def resolve_member_strength(
             if len(poly) >= 3 and point_in_polygon(cx, cy, poly):
                 zst = zone.get("strength")
                 if zst is not None:
-                    return float(zst)
+                    matched_strengths.append(float(zst))
+        if matched_strengths:
+            return max(matched_strengths)
 
     parsed = parse_strength_value(rhino_value)
     if parsed is not None:
@@ -1371,7 +1405,7 @@ def extract_floor_members(file_path: str, default_strengths: Optional[dict] = No
                     "centroid": {"x": float(cx), "y": float(cy), "z": float(cz)},
                     "bbox": bbox_dict,
                     "plan_curves": plan_curves,
-                    "color": strength_color(strength, orientation),
+                    "color": strength_color(strength, orientation, part),
                 })
             return members
         except Exception as e:
@@ -1421,7 +1455,7 @@ def extract_floor_members(file_path: str, default_strengths: Optional[dict] = No
                     "centroid": {"x": float(cx), "y": float(cy), "z": float(cz)},
                     "bbox": bbox_dict,
                     "plan_curves": _bbox_plan_rectangle(bbox_dict),
-                    "color": strength_color(strength, orientation),
+                    "color": strength_color(strength, orientation, part),
                 })
         except Exception as e:
             logger.error(f"부재 추출 실패: {e}")
@@ -1561,7 +1595,7 @@ def _compute_breakdown_rhinoinside(
             part, rhino_val, {"x": cx, "y": cy},
             strength_zones, overrides.get(idx), default_strengths,
         )
-        color = strength_color(strength, orientation)
+        color = mesh_display_color(part, strength, orientation)
 
         try:
             if brep.IsSolid and brep.SolidOrientation == BrepSolidOrientation.Inward:
@@ -1760,7 +1794,7 @@ def extract_members_preview(file_path: str, member_overrides: Optional[Dict[int,
             "part_type": m["part_type"],
             "orientation": m["orientation"],
             "strength": strength,
-            "color": strength_color(strength, m["orientation"]),
+            "color": strength_color(strength, m["orientation"], m["part_type"]),
             "footprint": [
                 {"x": bb["min"]["x"], "y": bb["min"]["y"]},
                 {"x": bb["max"]["x"], "y": bb["min"]["y"]},

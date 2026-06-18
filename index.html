@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <style>
 :root {
-  --sidebar-w: 340px;
+  --sidebar-w: 360px;
   --bg: #0f172a;
   --surface: #1e293b;
   --surface2: #334155;
@@ -51,8 +51,14 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
   border-bottom:none; padding-bottom:12px;
 }
 .section-zone-list .section-header { flex-shrink:0; margin-bottom:8px; }
-#zone-list { flex:1; min-height:0; overflow-y:auto; padding-right:2px; }
-#strength-zone-list { max-height:140px; overflow-y:auto; }
+#zone-list {
+  flex:1; min-height:0; overflow-y:auto;
+  scrollbar-gutter:stable;
+}
+@supports not (scrollbar-gutter: stable) {
+  #zone-list, #strength-zone-list, #member-panel { overflow-y:scroll; }
+}
+#strength-zone-list { max-height:min(320px, 40vh); overflow-y:auto; scrollbar-gutter:stable; }
 
 /* Form elements */
 input[type=text], input[type=date], input[type=number], select, textarea {
@@ -80,10 +86,35 @@ textarea { resize:vertical; min-height:40px; }
 .floor-chip.uploaded.active { background:var(--success); color:#fff; }
 
 /* Zone list */
-.zone-item { padding:8px 10px; background:var(--surface2); border-radius:var(--radius); margin-bottom:4px; display:flex; align-items:center; gap:8px; font-size:12px; border:1px solid transparent; }
-.zone-item:hover { background:var(--border); }
-.zone-item .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.zone-item .info { flex:1; cursor:pointer; }
+.zone-item { padding:8px 10px; background:var(--surface2); border-radius:var(--radius); margin-bottom:6px; display:flex; flex-direction:column; gap:0; font-size:12px; border:1px solid transparent; }
+.zone-item:hover { background:rgba(51,65,85,0.45); }
+.zone-item.expanded { border-color:var(--primary); background:rgba(59,130,246,0.08); }
+.zone-item-head { display:flex; align-items:flex-start; gap:6px; width:100%; }
+.zone-toggle {
+  width:28px; height:28px; flex-shrink:0; margin-top:1px;
+  border:1px solid var(--border); border-radius:6px; background:var(--surface);
+  color:var(--text2); font-size:13px; font-weight:700; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; z-index:2;
+  transition:border-color 0.15s, color 0.15s, background 0.15s;
+  touch-action:manipulation;
+}
+.zone-toggle:hover { border-color:var(--primary); color:var(--primary); background:rgba(59,130,246,0.12); }
+.zone-item.expanded .zone-toggle { border-color:var(--primary); color:var(--primary); background:rgba(59,130,246,0.15); }
+.zone-header-toggle {
+  display:flex; align-items:flex-start; gap:8px; flex:1; min-width:0; cursor:pointer;
+  padding:2px 0; border-radius:4px; touch-action:manipulation; user-select:none;
+}
+.zone-header-toggle:hover .zone-name { color:var(--primary); }
+.zone-summary { flex:1; min-width:0; }
+.zone-item-stats {
+  width:100%; margin-top:4px; padding-left:34px; box-sizing:border-box; cursor:pointer;
+}
+.zone-item-stats:hover .zone-hero-vol { color:var(--primary); }
+.zone-name { font-weight:600; transition:color 0.15s; }
+.zone-meta { font-size:10px; color:var(--text2); margin-top:2px; }
+.zone-actions { display:flex; gap:2px; flex-shrink:0; }
+.zone-item .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:5px; }
 .zone-item .vol { font-size:11px; color:var(--text2); }
 .zbtn { width:22px; height:22px; border:none; border-radius:4px; background:var(--surface); color:var(--text2); font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .zbtn:hover { background:var(--primary); color:#fff; }
@@ -110,6 +141,17 @@ textarea { resize:vertical; min-height:40px; }
 #canvas2d, #canvas3d { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
 #canvas3d:active { cursor:grabbing; }
 #view3d-legend { position:absolute; bottom:12px; left:8px; z-index:10; pointer-events:none; display:flex; flex-direction:column; gap:3px; font-size:9px; color:var(--text2); background:rgba(15,23,42,0.75); padding:6px 8px; border-radius:6px; border:1px solid var(--border); }
+#view3d-controls { position:absolute; top:36px; right:8px; z-index:10; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+.view3d-toggle {
+  display:flex; align-items:center; gap:6px; font-size:10px; color:var(--text2);
+  background:rgba(15,23,42,0.88); border:1px solid var(--border); border-radius:6px;
+  padding:6px 10px; cursor:pointer; user-select:none; transition:border-color 0.15s, color 0.15s;
+}
+.view3d-toggle:hover { border-color:var(--primary); color:var(--text); }
+.view3d-toggle input { accent-color:var(--primary); cursor:pointer; }
+.view3d-toggle.active { border-color:#64748b; color:var(--text); background:rgba(100,116,139,0.15); }
+#view3d-poured-hint { font-size:9px; color:var(--text2); max-width:160px; text-align:right; line-height:1.35; display:none; }
+#view3d-poured-hint.visible { display:block; }
 #view3d-legend span { display:flex; align-items:center; gap:5px; }
 .view-loading { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(10,14,26,0.78); z-index:12; pointer-events:none; }
 .view-loading.visible { display:flex; }
@@ -136,7 +178,110 @@ textarea { resize:vertical; min-height:40px; }
 .tab-btn:hover { color:var(--text); }
 
 /* Pour status panel (inline under zone) */
-.pour-status-panel { margin-top:8px; padding:8px; background:var(--surface); border-radius:6px; border:1px solid var(--border); }
+.pour-status-panel {
+  margin-top:8px; padding:10px; background:rgba(15,23,42,0.45);
+  border-radius:8px; border:1px solid var(--border);
+  display:flex; flex-direction:column; gap:10px;
+}
+.pour-block { padding:10px; border-radius:8px; border:1px solid; }
+.pour-block-plan {
+  background:linear-gradient(180deg, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0.05) 100%);
+  border-color:rgba(59,130,246,0.38);
+}
+.pour-block-progress {
+  background:linear-gradient(180deg, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.05) 100%);
+  border-color:rgba(16,185,129,0.38);
+}
+.pour-block-ops {
+  background:rgba(30,41,59,0.55);
+  border-color:rgba(100,116,139,0.45);
+  border-style:dashed;
+}
+.pour-block-head {
+  display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;
+}
+.pour-block-sub { font-size:9px; margin:-2px 0 8px; line-height:1.35; }
+.pour-block-plan .pour-block-sub { color:rgba(147,197,253,0.85); }
+.pour-block-progress .pour-block-sub { color:rgba(110,231,183,0.85); }
+.pour-block-tag {
+  font-size:9px; font-weight:700; letter-spacing:0.06em; padding:2px 7px;
+  border-radius:999px; flex-shrink:0; line-height:1.3;
+}
+.pour-block-plan .pour-block-tag { background:rgba(59,130,246,0.28); color:#bfdbfe; }
+.pour-block-progress .pour-block-tag { background:rgba(16,185,129,0.28); color:#a7f3d0; }
+.pour-section-title { font-size:11px; font-weight:600; color:var(--text2); margin:0 0 6px; letter-spacing:0.02em; }
+.pour-block .pour-section-title { margin:0; border:0; padding:0; }
+.pour-block-plan .pour-section-title { font-size:12px; font-weight:700; color:#93c5fd; }
+.pour-block-progress .pour-section-title { font-size:12px; font-weight:700; color:#6ee7b7; }
+.pour-block-ops .pour-section-title { font-size:11px; font-weight:700; color:#cbd5e1; }
+.pour-block-plan .pour-progress-cell {
+  background:rgba(59,130,246,0.16); border:1px solid rgba(59,130,246,0.28);
+}
+.pour-block-progress .pour-progress-cell {
+  background:rgba(16,185,129,0.16); border:1px solid rgba(16,185,129,0.28);
+}
+.pour-block-plan .pour-progress-cell .pl { color:rgba(191,219,254,0.85); }
+.pour-block-progress .pour-progress-cell .pl { color:rgba(167,243,208,0.85); }
+.pour-block-plan .str-table-wrap {
+  border-color:rgba(59,130,246,0.32); background:rgba(59,130,246,0.06);
+}
+.pour-block-progress .str-table-wrap {
+  border-color:rgba(16,185,129,0.32); background:rgba(16,185,129,0.06);
+}
+.pour-final-section { margin-top:0; padding-top:10px; border-top:2px dashed rgba(100,116,139,0.45); }
+.zone-hero-stat { display:flex; align-items:baseline; gap:8px; margin-top:4px; }
+.zone-hero-vol { font-size:16px; font-weight:700; color:var(--text); letter-spacing:-0.02em; line-height:1.2; }
+.zone-hero-trucks {
+  font-size:12px; font-weight:600; color:var(--text2);
+  background:rgba(148,163,184,0.12); border:1px solid rgba(148,163,184,0.2);
+  padding:2px 7px; border-radius:999px; line-height:1.3;
+}
+.str-table-wrap {
+  margin-top:6px; border-radius:5px; overflow:visible;
+  border:1px solid rgba(71,85,105,0.45); background:rgba(15,23,42,0.35);
+}
+.str-table-wrap.compact { margin-top:4px; }
+.str-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.str-table thead th {
+  font-size:11px; font-weight:600; color:var(--text2); letter-spacing:0.04em;
+  padding:5px 8px; background:rgba(30,41,59,0.75); text-align:right;
+  border-bottom:1px solid rgba(71,85,105,0.4); line-height:1.3;
+}
+.str-table-wrap.compact .str-table thead th { padding:4px 8px; font-size:10px; }
+.str-table thead th:first-child { text-align:left; width:34%; }
+.str-table thead th:nth-child(2) { width:33%; }
+.str-table thead th:nth-child(3) { width:33%; }
+.str-table tbody td {
+  padding:6px 8px; text-align:right; vertical-align:middle;
+  border-top:1px solid rgba(71,85,105,0.25);
+  font-variant-numeric:tabular-nums; line-height:1.35;
+  overflow:visible; white-space:nowrap;
+}
+.str-table-wrap.compact .str-table tbody td { padding:4px 8px; }
+.str-table tbody tr:first-child td { border-top:none; }
+.str-table tbody td:first-child { text-align:left; white-space:normal; }
+.str-table .col-vol { font-weight:700; font-size:14px; color:var(--text); }
+.str-table-wrap.compact .str-table .col-vol { font-size:13px; }
+.str-table .col-tr { font-weight:600; font-size:13px; padding-right:10px; }
+.str-table-wrap.compact .str-table .col-tr { font-size:12px; }
+.str-table thead th:last-child { padding-right:10px; }
+.str-table tbody tr.remain .col-vol::before { content:'잔여 '; font-weight:500; font-size:11px; color:var(--warning); }
+.str-table tbody tr.done { opacity:0.45; }
+.str-badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:12px; }
+.str-table-wrap.compact .str-badge { gap:5px; font-size:12px; }
+.str-badge-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; box-shadow:0 0 0 1px rgba(255,255,255,0.08); }
+.str-table-wrap.compact .str-badge-dot { width:7px; height:7px; }
+.str-stat-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text); padding:3px 0; gap:6px; }
+.str-stat-row .str-k { font-weight:700; color:var(--text); min-width:46px; font-size:11px; }
+.str-stat-row .str-val { font-weight:700; font-size:13px; }
+.str-stat-row .str-tr { font-weight:700; font-size:12px; white-space:nowrap; }
+.str-stat-row.remain .str-k { color:var(--warning); }
+.str-stat-row.done { opacity:0.85; }
+.pour-progress-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:8px; }
+.pour-progress-cell { text-align:center; padding:7px 5px; background:var(--surface2); border-radius:4px; }
+.pour-progress-cell .pv { font-size:15px; font-weight:700; color:var(--text); line-height:1.2; }
+.pour-progress-cell .pl { font-size:10px; color:var(--text2); margin-top:3px; line-height:1.25; }
+.pour-drawing-banner { padding:8px; margin-bottom:8px; background:rgba(16,185,129,0.08); border:1px dashed rgba(16,185,129,0.45); border-radius:6px; }
 .pour-compare { display:flex; gap:4px; margin-bottom:8px; }
 .pour-col { flex:1; text-align:center; padding:4px; background:var(--surface2); border-radius:4px; }
 .pour-val { font-size:14px; font-weight:bold; color:var(--text); }
@@ -148,11 +293,12 @@ textarea { resize:vertical; min-height:40px; }
 .actual-field { flex:1; min-width:0; }
 .actual-field label { display:block; font-size:9px; color:var(--text2); margin-bottom:2px; }
 .actual-field input { width:100%; box-sizing:border-box; }
-.actual-pour-row { display:grid; grid-template-columns:6px minmax(0,1fr) auto; align-items:center; gap:3px 6px; padding:5px 6px; font-size:11px; border-radius:4px; background:var(--surface2); margin-bottom:3px; }
-.ap-dot { width:6px; height:6px; border-radius:50%; background:var(--success); flex-shrink:0; }
-.ap-name { font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.actual-pour-row { display:grid; grid-template-columns:6px minmax(0,1fr) auto; align-items:start; gap:3px 6px; padding:6px; font-size:12px; border-radius:4px; background:var(--surface2); margin-bottom:3px; }
+.ap-info { grid-column:2 / 4; grid-row:2; font-size:11px; color:var(--text2); line-height:1.4; word-break:keep-all; }
+.ap-name { grid-column:2; grid-row:1; font-weight:600; font-size:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ap-actions { display:flex; gap:3px; grid-column:3; grid-row:1; }
-.ap-info { grid-column:2 / 4; font-size:10px; color:var(--text2); line-height:1.25; word-break:keep-all; }
+.ap-dot { grid-column:1; grid-row:1; width:6px; height:6px; border-radius:50%; background:var(--success); flex-shrink:0; margin-top:4px; }
+.ap-str-line { display:flex; justify-content:space-between; gap:6px; margin-top:2px; }
 
 /* Strength / breakdown */
 .strength-inputs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:6px; }
@@ -163,11 +309,12 @@ textarea { resize:vertical; min-height:40px; }
 .breakdown-chip.h { border-color:#06b6d4; color:#06b6d4; }
 .breakdown-chip.v { border-color:#a855f7; color:#a855f7; }
 .strength-zone-item { padding:6px 8px; background:var(--surface2); border-radius:6px; margin-bottom:4px; font-size:11px; border-left:3px solid #ef4444; }
+.strength-zone-count { font-size:10px; color:var(--text2); font-weight:500; margin-left:6px; }
 .member-row { display:grid; grid-template-columns:1fr auto auto; gap:4px; align-items:center; padding:4px 0; border-bottom:1px solid rgba(71,85,105,0.3); font-size:10px; }
 .member-row input { width:48px; padding:3px; margin:0; font-size:10px; }
 .legend-bar { display:flex; flex-wrap:wrap; gap:6px; padding:4px 0; font-size:9px; color:var(--text2); }
 .legend-dot { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:3px; }
-#member-panel { max-height:220px; overflow-y:auto; }
+#member-panel { max-height:220px; overflow-y:auto; scrollbar-gutter:stable; }
 
 /* Toast */
 .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:var(--radius); color:#fff; font-size:12px; z-index:9999; animation:fadeIn .3s; }
@@ -279,9 +426,9 @@ textarea { resize:vertical; min-height:40px; }
     <button class="btn btn-primary btn-block btn-sm" id="btn-upload-floor">.3dm 업로드 / 층 추가</button>
   </div>
 
-  <div class="section section-collapsible" data-section="summary">
+  <div class="section section-collapsible collapsed" data-section="summary">
     <div class="section-header section-header-toggle">
-      <button type="button" class="section-toggle" aria-expanded="true" aria-label="접기">▶</button>
+      <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
       <div class="section-title section-title-flex">요약</div>
     </div>
     <div class="section-body">
@@ -313,7 +460,7 @@ textarea { resize:vertical; min-height:40px; }
   <div class="section section-collapsible collapsed" data-section="strength-zones">
     <div class="section-header section-header-toggle">
       <button type="button" class="section-toggle" aria-expanded="false" aria-label="펼치기">▶</button>
-      <div class="section-title section-title-flex">추가 강도 구역</div>
+      <div class="section-title section-title-flex">추가 강도 구역 <span id="strength-zone-count" class="strength-zone-count"></span></div>
       <button class="btn btn-sm" id="btn-new-strength-zone" style="background:#ef4444;color:#fff">+ 선분 그리기</button>
     </div>
     <div class="section-body">
@@ -397,11 +544,21 @@ textarea { resize:vertical; min-height:40px; }
         <div class="load-sub">먼저 완료되는 뷰부터 표시됩니다</div>
       </div>
       <canvas id="canvas3d"></canvas>
+      <div id="view3d-controls">
+        <label class="view3d-toggle" id="label-3d-poured-muted" title="m³ 계산된 타설차수 영역만 단조 색상으로 표시">
+          <input type="checkbox" id="toggle-3d-poured-muted">
+          <span>타설 완료 단조 표시</span>
+        </label>
+        <div id="view3d-poured-hint">타설차수 폴리곤 안 부재만 단조 · 나머지 부재·강도 색상 유지</div>
+      </div>
       <div id="view3d-legend">
-        <span><span class="legend-dot" style="background:rgba(34,211,238,0.25)"></span>수평(투명·아래 수직재 보임)</span>
-        <span><span class="legend-dot" style="background:#3b82f6"></span>벽체(파랑)</span>
-        <span><span class="legend-dot" style="background:#a855f7"></span>기둥(보라)</span>
-        <span><span class="legend-dot" style="background:#fbbf24"></span>타설구역 교집합</span>
+        <span style="font-weight:600;color:var(--text);margin-bottom:2px">부재 × 강도</span>
+        <span><span class="legend-dot" style="background:#22d3ee"></span>수평 24</span>
+        <span><span class="legend-dot" style="background:#fde047"></span>수평 35</span>
+        <span><span class="legend-dot" style="background:#3b82f6"></span>벽체 24</span>
+        <span><span class="legend-dot" style="background:#fb923c"></span>벽체 35</span>
+        <span><span class="legend-dot" style="background:#a855f7"></span>기둥 24</span>
+        <span><span class="legend-dot" style="background:#f97316"></span>기둥 35</span>
       </div>
     </div>
   </div>
@@ -417,6 +574,18 @@ textarea { resize:vertical; min-height:40px; }
 
 <script>
 // ===================== STATE =====================
+const STRENGTH_ZONE_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899', '#64748b'];
+
+function strengthZoneColor(index) {
+  return STRENGTH_ZONE_COLORS[index % STRENGTH_ZONE_COLORS.length];
+}
+
+function hexToRgba(hex, alpha) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length < 6) return `rgba(239,68,68,${alpha})`;
+  return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${alpha})`;
+}
+
 const STATE = {
   projectName: '개편테스트',
   floors: [],
@@ -437,15 +606,69 @@ const STATE = {
   drawingStrengthZone: false,
 };
 
-function strengthToColor(strength, orientation) {
-  if (strength == null || strength === '' || isNaN(strength)) return '#64748b';
-  const s = Math.round(Number(strength));
-  const hue = (s * 47 + (orientation === 'vertical' ? 30 : 0)) % 360;
-  return `hsl(${hue}, 68%, 52%)`;
+// 부재(행) × 강도(열) — 부재 계열 유지 + 강도별 명확한 차등 (2D·3D 공통)
+const MEMBER_COLOR_3D = {
+  '수평': { 21: '#67e8f9', 24: '#22d3ee', 27: '#06b6d4', 30: '#0891b2', 35: '#fde047', 40: '#facc15', 45: '#eab308' },
+  '벽체': { 21: '#93c5fd', 24: '#3b82f6', 27: '#2563eb', 30: '#1d4ed8', 35: '#fb923c', 40: '#ea580c', 45: '#dc2626' },
+  '기둥': { 21: '#d8b4fe', 24: '#a855f7', 27: '#9333ea', 30: '#7e22ce', 35: '#f97316', 40: '#ef4444', 45: '#e11d48' },
+  '미분류': { 24: '#94a3b8', 35: '#78716c', 40: '#57534e' },
+};
+
+function normalizePartTypeClient(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return '미분류';
+  if (t === '수평' || t.includes('수평') || /^h$|horizontal|slab/i.test(t)) return '수평';
+  if (t === '벽체' || t.includes('벽') || /^w$|wall/i.test(t)) return '벽체';
+  if (t === '기둥' || t.includes('기둥') || /^c$|column|col/i.test(t)) return '기둥';
+  return t;
+}
+
+function parseStrength3D(raw) {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number' && !isNaN(raw)) return Math.round(raw);
+  const s = String(raw).trim().toUpperCase().replace(/MPA/g, '').replace(/M/g, '');
+  const n = Number(s);
+  return isNaN(n) ? null : Math.round(n);
+}
+
+function _lerpHex3D(c0, c1, t) {
+  t = Math.max(0, Math.min(1, t));
+  const r0 = parseInt(c0.slice(1, 3), 16), g0 = parseInt(c0.slice(3, 5), 16), b0 = parseInt(c0.slice(5, 7), 16);
+  const r1 = parseInt(c1.slice(1, 3), 16), g1 = parseInt(c1.slice(3, 5), 16), b1 = parseInt(c1.slice(5, 7), 16);
+  const r = Math.round(r0 + (r1 - r0) * t);
+  const g = Math.round(g0 + (g1 - g0) * t);
+  const b = Math.round(b0 + (b1 - b0) * t);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+function resolveMemberColorHex3D(part, strength) {
+  part = normalizePartTypeClient(part);
+  const row = MEMBER_COLOR_3D[part] || MEMBER_COLOR_3D['미분류'];
+  const s = parseStrength3D(strength);
+  if (s == null) return null;
+  if (row[s]) return row[s];
+  const keys = Object.keys(row).map(Number).sort((a, b) => a - b);
+  if (s <= keys[0]) return row[keys[0]];
+  if (s >= keys[keys.length - 1]) return row[keys[keys.length - 1]];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const lo = keys[i], hi = keys[i + 1];
+    if (s >= lo && s <= hi) {
+      return _lerpHex3D(row[lo], row[hi], (s - lo) / (hi - lo));
+    }
+  }
+  return row[keys[keys.length - 1]];
+}
+
+function strengthToColor(strength, orientation, partType) {
+  const part = partType
+    ? normalizePartTypeClient(partType)
+    : (orientation === 'vertical' ? '벽체' : '수평');
+  return resolveMemberColorHex3D(part, strength) || '#64748b';
 }
 
 function formatStrengthLabel(s) {
   if (s == null || s === '미설정') return '미설정';
+  if (String(s) === '합계') return '합계';
   return `${s}MPa`;
 }
 
@@ -1011,6 +1234,9 @@ async function loadFloorData() {
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       if (seq !== floorLoadSeq) return;
       render3DModel(data);
+      if (STATE.selectedZone) {
+        await refreshZone3DVisualization(STATE.selectedZone);
+      }
       done3d = true;
       setViewLoading('view3d-loading', false);
       refreshStatus();
@@ -1070,17 +1296,23 @@ async function loadStrengthZones() {
 
 function renderStrengthZoneList() {
   const el = document.getElementById('strength-zone-list');
+  const countEl = document.getElementById('strength-zone-count');
+  if (countEl) {
+    countEl.textContent = STATE.strengthZones.length ? `(${STATE.strengthZones.length}개)` : '';
+  }
   if (!el) return;
   el.innerHTML = '';
   if (!STATE.strengthZones.length) {
-    el.innerHTML = '<div style="font-size:10px;color:var(--text2)">강도 구역 없음</div>';
+    el.innerHTML = '<div style="font-size:10px;color:var(--text2)">강도 구역 없음 — [+ 선분 그리기]로 추가</div>';
     return;
   }
-  STATE.strengthZones.forEach(sz => {
+  STATE.strengthZones.forEach((sz, idx) => {
     const row = document.createElement('div');
     row.className = 'strength-zone-item';
+    const color = strengthZoneColor(idx);
+    row.style.borderLeftColor = color;
     const isEditing = STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id === sz.id;
-    if (isEditing) row.style.outline = '1px solid #ef4444';
+    if (isEditing) row.style.outline = `1px solid ${color}`;
     row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
       <span style="flex:1;min-width:0;cursor:pointer" title="윤곽 편집"><strong>${sz.zone_name}</strong> · ${sz.strength}MPa · ${(sz.target_parts||[]).join('/')}</span>
       <button class="zbtn z-edit" title="윤곽·설정 수정">✎</button>
@@ -1165,21 +1397,32 @@ function showMemberEditModal(filterKey) {
 
 document.getElementById('btn-new-strength-zone').onclick = () => {
   if (!STATE.activeFloor) { showToast('층을 먼저 선택하세요', 'error'); return; }
-  if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id && STATE.drawingPoints.length >= 3) {
-    const sz = STATE.strengthZones.find(z => z.id === STATE.editTarget.id);
-    if (sz) showStrengthZoneModal(sz);
-    return;
-  }
-  if (STATE.tool === 'draw-strength' && STATE.isDrawing && STATE.drawingPoints.length >= 3) {
+  const editingId = STATE.editTarget.type === 'strength-zone' ? STATE.editTarget.id : null;
+  const btn = document.getElementById('btn-new-strength-zone');
+
+  // 신규 선분 완성 → 저장
+  if (STATE.tool === 'draw-strength' && STATE.isDrawing && !editingId && STATE.drawingPoints.length >= 3) {
     showStrengthZoneModal();
     return;
   }
+  // 기존 구역 윤곽 편집 저장 (버튼이 ✓ 윤곽 저장일 때만)
+  if (editingId && STATE.drawingPoints.length >= 3 && btn?.textContent.startsWith('✓')) {
+    const sz = STATE.strengthZones.find(z => z.id === editingId);
+    if (sz) showStrengthZoneModal(sz);
+    return;
+  }
+
+  // 새 강도구역 그리기 (기존 편집 중이면 취소 후 신규)
+  if (editingId) cancelStrengthZoneEdit(false);
   STATE.drawingPoints = [];
   STATE.isDrawing = true;
   STATE.drawingStrengthZone = true;
   STATE.editTarget = { type: 'strength-zone', id: null };
   setActiveTool('draw-strength');
-  showToast('2D 클릭으로 점 추가 → 우측 상단 [저장] 또는 사이드바 버튼', 'success');
+  expandSidebarSection('strength-zones');
+  updateStrengthZoneButton();
+  updateDrawFloatingActions();
+  showToast('새 강도구역 — 2D 클릭으로 점 추가 후 [저장]', 'success');
 };
 
 function showStrengthZoneModal(existing) {
@@ -1262,19 +1505,229 @@ function showStrengthZoneModal(existing) {
   };
 }
 
-function formatBreakdown(z) {
-  const h = z.volume_horizontal || 0;
-  const v = z.volume_vertical || 0;
-  const byS = z.volume_by_strength || {};
-  const chips = [];
-  if (h > 0) chips.push(`<span class="breakdown-chip h">수평 ${h.toFixed(1)}m³</span>`);
-  if (v > 0) chips.push(`<span class="breakdown-chip v">수직 ${v.toFixed(1)}m³</span>`);
-  Object.entries(byS)
-    .sort((a, b) => (Number(b[0]) || 0) - (Number(a[0]) || 0))
-    .forEach(([k, val]) => {
-      if (val > 0) chips.push(`<span class="breakdown-chip">${formatStrengthLabel(k)} ${val.toFixed(1)}m³</span>`);
+const TRUCK_VOL = 6;
+const TRUCK_MIN_VOL = 3;   // 3m³ 이하 → 최소 0.5대
+
+function trucksFromVol(vol) {
+  const v = Number(vol) || 0;
+  if (v <= 0) return 0;
+  let trucks = v / TRUCK_VOL;
+  trucks = Math.ceil(trucks * 2 - 1e-9) / 2; // 0.5대 단위 올림 (부족분 없음)
+  if (v <= TRUCK_MIN_VOL && trucks < 0.5) trucks = 0.5;
+  return trucks;
+}
+
+function formatTrucks(trucks) {
+  const t = Number(trucks) || 0;
+  if (t <= 0) return '0';
+  if (Math.abs(t * 2 - Math.round(t * 2)) < 0.001) {
+    return Number.isInteger(t) ? String(t) : t.toFixed(1);
+  }
+  return t.toFixed(1);
+}
+
+function trucksLabelFromVol(vol) {
+  return `${formatTrucks(trucksFromVol(vol))}대`;
+}
+
+function sortedStrengthKeys(byS) {
+  return Object.keys(byS || {}).filter(k => (byS[k] || 0) > 0).sort((a, b) => {
+    const na = Number(a), nb = Number(b);
+    if (!isNaN(na) && !isNaN(nb)) return nb - na;
+    if (a === '미설정') return 1;
+    if (b === '미설정') return -1;
+    return String(b).localeCompare(String(a));
+  });
+}
+
+function mergeStrengthMaps(...maps) {
+  const out = {};
+  maps.forEach(m => {
+    Object.entries(m || {}).forEach(([k, v]) => {
+      const n = Number(v) || 0;
+      if (n > 0) out[k] = (out[k] || 0) + n;
     });
-  return chips.length ? `<div class="breakdown-row">${chips.join('')}</div>` : '';
+  });
+  return out;
+}
+
+function normalizeStrengthKey(k) {
+  if (k == null || k === '') return '미설정';
+  const s = String(k).replace(/MPa/gi, '').trim();
+  if (s === '미설정' || s === '합계') return s;
+  const n = Number(s);
+  return Number.isNaN(n) ? s : String(Math.round(n));
+}
+
+function normalizeStrengthMap(m) {
+  const out = {};
+  Object.entries(m || {}).forEach(([k, v]) => {
+    const nk = normalizeStrengthKey(k);
+    const n = Number(v) || 0;
+    if (n > 0) out[nk] = (out[nk] || 0) + n;
+  });
+  return out;
+}
+
+function strengthMapSum(m) {
+  return Object.values(m || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+}
+
+function addToStrengthMap(target, source) {
+  Object.entries(source || {}).forEach(([k, v]) => {
+    const n = Number(v) || 0;
+    if (n <= 0) return;
+    const nk = normalizeStrengthKey(k);
+    target[nk] = (target[nk] || 0) + n;
+  });
+}
+
+function allocateVolumeByRemainPlan(vol, remainPlan) {
+  const out = {};
+  const keys = Object.keys(remainPlan).filter(k => (remainPlan[k] || 0) > 0.0001);
+  const sum = keys.reduce((s, k) => s + remainPlan[k], 0);
+  if (vol <= 0 || sum <= 0) return out;
+  keys.forEach(k => { out[k] = vol * (remainPlan[k] / sum); });
+  return out;
+}
+
+/** 타설차수별 강도 breakdown (없으면 남은 계획 비율로 배분) */
+function breakdownSinglePourStrength(pour, remainPlan) {
+  const vol = Number(pour?.volume) || 0;
+  if (vol <= 0) return {};
+  const raw = normalizeStrengthMap(pour.volume_by_strength);
+  const rawSum = strengthMapSum(raw);
+  if (rawSum >= vol - 0.05) return raw;
+  const out = { ...raw };
+  const gap = Math.max(0, vol - rawSum);
+  if (gap > 0) addToStrengthMap(out, allocateVolumeByRemainPlan(gap, remainPlan));
+  return out;
+}
+
+function buildPouredByStrength(pours, planByS, endExclusive = null) {
+  const normalizedPlan = normalizeStrengthMap(planByS);
+  const remain = { ...normalizedPlan };
+  const pouredByS = {};
+  const list = endExclusive == null ? (pours || []) : (pours || []).slice(0, endExclusive);
+  for (const p of list) {
+    const portion = breakdownSinglePourStrength(p, remain);
+    addToStrengthMap(pouredByS, portion);
+    Object.entries(portion).forEach(([k, v]) => {
+      remain[k] = Math.max(0, (remain[k] || 0) - (Number(v) || 0));
+    });
+  }
+  return { pouredByS, remainPlan: remain };
+}
+
+function remainByStrengthForPlan(planByS, remainPlan) {
+  const remainByS = {};
+  sortedStrengthKeys(planByS).forEach(k => {
+    remainByS[k] = remainPlan[normalizeStrengthKey(k)] ?? 0;
+  });
+  return remainByS;
+}
+
+function computePourProgress(zone, pours) {
+  const calcVol = zone.calculated_volume || 0;
+  const planByS = zone.volume_by_strength || {};
+  const pouredTotal = (pours || []).reduce((s, p) => s + (p.volume || 0), 0);
+  const { pouredByS, remainPlan } = buildPouredByStrength(pours, planByS);
+  const remainByS = remainByStrengthForPlan(planByS, remainPlan);
+  const remainTotal = Math.max(0, calcVol - pouredTotal);
+  return {
+    calcVol,
+    planByS,
+    pouredTotal,
+    pouredByS,
+    remainTotal,
+    remainByS,
+    plannedTrucks: trucksFromVol(calcVol),
+    pouredTrucks: trucksFromVol(pouredTotal),
+    remainTrucks: trucksFromVol(remainTotal),
+  };
+}
+
+function strengthUiStyle(key) {
+  const k = String(key).replace(/MPa/gi, '').trim();
+  const palette = {
+    '35': { color: '#fb923c', bg: 'rgba(251,146,60,0.10)' },
+    '24': { color: '#38bdf8', bg: 'rgba(56,189,248,0.08)' },
+    '27': { color: '#a78bfa', bg: 'rgba(167,139,250,0.08)' },
+    '30': { color: '#818cf8', bg: 'rgba(129,140,248,0.08)' },
+    '40': { color: '#f87171', bg: 'rgba(248,113,113,0.08)' },
+    '45': { color: '#fbbf24', bg: 'rgba(251,191,36,0.08)' },
+    '21': { color: '#94a3b8', bg: 'rgba(148,163,184,0.06)' },
+    '미설정': { color: '#64748b', bg: 'rgba(100,116,139,0.06)' },
+  };
+  if (palette[k]) return palette[k];
+  if (k === '합계') return { color: '#cbd5e1', bg: 'rgba(148,163,184,0.06)' };
+  const n = Number(k);
+  if (!isNaN(n) && n >= 35) return palette['35'];
+  if (!isNaN(n) && n >= 27) return palette['27'];
+  return palette['24'];
+}
+
+function renderStrengthTable(byS, opts = {}) {
+  const { remainByS, mode = 'plan', compact = false, showHeader = true } = opts;
+  const keys = sortedStrengthKeys(byS);
+  if (!keys.length) return '';
+
+  const bodyRows = keys.map(k => {
+    const plan = byS[k] || 0;
+    if (plan <= 0) return '';
+    const ui = strengthUiStyle(k);
+    let vol = plan;
+    let rowCls = '';
+    if (mode === 'remain') {
+      vol = remainByS && remainByS[k] !== undefined ? remainByS[k] : plan;
+      rowCls = vol <= 0.05 ? 'done' : 'remain';
+      if (vol <= 0.05) return '';
+    }
+    const tr = trucksFromVol(vol);
+    return `<tr class="${rowCls}" style="background:${ui.bg}">
+      <td><span class="str-badge"><span class="str-badge-dot" style="background:${ui.color}"></span><span style="color:${ui.color}">${formatStrengthLabel(k)}</span></span></td>
+      <td class="col-vol">${vol.toFixed(1)}</td>
+      <td class="col-tr" style="color:${ui.color}">${formatTrucks(tr)}</td>
+    </tr>`;
+  }).join('');
+
+  if (!bodyRows) return '';
+  const head = showHeader
+    ? `<thead><tr><th>강도</th><th>m³</th><th>대</th></tr></thead>`
+    : '';
+  const wrapCls = compact ? 'str-table-wrap compact' : 'str-table-wrap';
+  return `<div class="${wrapCls}"><table class="str-table">${head}<tbody>${bodyRows}</tbody></table></div>`;
+}
+
+function renderStrengthStatRows(byS, opts = {}) {
+  return renderStrengthTable(byS, { ...opts, compact: true, showHeader: true });
+}
+
+function formatZoneStrengthSummary(z) {
+  const byS = z.volume_by_strength || {};
+  const calcVol = z.calculated_volume || 0;
+  if (calcVol <= 0 && !sortedStrengthKeys(byS).length) return '';
+  const table = renderStrengthTable(byS, { compact: true, showHeader: true });
+  if (table) return table;
+  if (calcVol > 0) {
+    return renderStrengthTable({ 합계: calcVol }, { compact: true, showHeader: true });
+  }
+  return '';
+}
+
+function renderPourDrawingBanner(z, progress) {
+  const pts = STATE.drawingPoints.length;
+  return `
+    <div class="pour-drawing-banner">
+      <div style="font-weight:600;font-size:11px;margin-bottom:6px;color:var(--success)">타설 폴리라인 그리는 중 · ${pts}점</div>
+      ${renderStrengthTable(progress.planByS, { remainByS: progress.remainByS, mode: 'remain', compact: true })}
+      <div style="font-size:9px;color:var(--text2);margin-top:6px">3점 이상 찍은 뒤 아래 [타설 폴리라인 저장] → ▶ 체적 계산</div>
+    </div>`;
+}
+
+function formatPourStrengthLines(ap) {
+  const byS = ap.volume_by_strength || {};
+  return renderStrengthTable(byS, { compact: true, showHeader: false });
 }
 
 async function recalculateAllPourZones() {
@@ -1312,18 +1765,18 @@ async function loadSummary() {
       const planned = s.planned?.count || 0;
       const completed = s.completed?.count || 0;
       const totalVol = (s.planned?.calc_volume || 0) + (s.completed?.calc_volume || 0);
-      const trucks = Math.ceil(totalVol / 6);
+      const trucks = trucksFromVol(totalVol);
 
       document.getElementById('sum-planned').textContent = planned;
       document.getElementById('sum-completed').textContent = completed;
       document.getElementById('sum-calc-vol').textContent = totalVol.toFixed(1);
-      document.getElementById('sum-trucks').textContent = trucks;
+      document.getElementById('sum-trucks').textContent = formatTrucks(trucks);
 
       // 모바일 요약 바 업데이트
       document.getElementById('msm-planned').textContent = planned;
       document.getElementById('msm-completed').textContent = completed;
       document.getElementById('msm-vol').textContent = totalVol.toFixed(1);
-      document.getElementById('msm-trucks').textContent = trucks;
+      document.getElementById('msm-trucks').textContent = formatTrucks(trucks);
       document.getElementById('msm-project-name').textContent = STATE.projectName;
       document.getElementById('msm-floor').textContent = STATE.activeFloor;
     }
@@ -1334,6 +1787,7 @@ let actualPours = [];
 let selectedActualPourId = null;
 const actualPoursCache = {};
 const collapsedActual = {};
+let zoneSelectToken = 0;
 const dirtyZoneOutlines = new Set();
 
 function getZoneActualPours(zoneId) {
@@ -1344,15 +1798,49 @@ function refreshActualPourDrawingUi() {
   if (STATE.editTarget.type === 'actual-new') renderZoneList();
 }
 
-async function selectZoneDirect(z) {
+async function collapseZoneExpand() {
+  zoneSelectToken++;
+  STATE.selectedZone = null;
+  STATE.editingActual = false;
+  STATE.editTarget = { type: 'zone', id: null };
+  selectedActualPourId = null;
+  STATE.drawingPoints = [];
+  clearZone3DHighlight();
+  renderZoneList();
+  draw2D();
+}
+
+async function expandZone(z) {
+  if (!z) return;
+  const token = ++zoneSelectToken;
   STATE.selectedZone = z;
   STATE.editingActual = false;
   STATE.editTarget = { type: 'zone', id: z.id };
   selectedActualPourId = null;
-  STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
-  await selectZoneAndShowMesh(z);
+  STATE.drawingPoints = (z.polygon || []).map(p => ({ x: p.x, y: p.y }));
   renderZoneList();
   draw2D();
+  closeSidebarOnMobile();
+
+  try {
+    await selectZoneAndShowMesh(z);
+  } catch (e) {
+    console.warn('구역 활성화 실패:', e);
+  }
+  if (token !== zoneSelectToken) return;
+  draw2D();
+}
+
+async function toggleZoneExpand(z) {
+  if (STATE.selectedZone && STATE.selectedZone.id === z.id) {
+    await collapseZoneExpand();
+  } else {
+    await expandZone(z);
+  }
+}
+
+async function selectZoneDirect(z) {
+  await expandZone(z);
 }
 
 function renderMobileZoneSelector() {
@@ -1368,7 +1856,7 @@ function renderMobileZoneSelector() {
     const chip = document.createElement('button');
     const isSelected = STATE.selectedZone && STATE.selectedZone.id === z.id;
     chip.className = 'mobile-zone-chip' + (isSelected ? ' active' : '');
-    chip.innerHTML = `${z.zone_name}<span class="mzc-vol">${(z.calculated_volume||0).toFixed(1)}m³</span>`;
+    chip.innerHTML = `${z.zone_name}<span class="mzc-vol">${(z.calculated_volume||0).toFixed(1)}m³ · ${trucksLabelFromVol(z.calculated_volume||0)}</span>`;
     chip.onclick = () => selectZoneDirect(z);
     el.appendChild(chip);
   });
@@ -1392,106 +1880,123 @@ function renderZoneList() {
   STATE.zones.forEach(z => {
     const isSelected = STATE.selectedZone && STATE.selectedZone.id === z.id;
     const calcVol = z.calculated_volume || 0;
-    const plannedTrucks = Math.ceil(calcVol / 6);
+    const plannedTrucks = trucksFromVol(calcVol);
     const pours = getZoneActualPours(z.id);
-    const totalActual = pours.reduce((s, p) => s + (p.volume || 0), 0);
     const finalActual = (z.actual_volume && z.actual_volume > 0) ? z.actual_volume : null;
-    const finalActualDiff = finalActual === null ? null : finalActual - calcVol; // 완료 후 최종 실제 물량 비교
-    const remain = Math.max(0, calcVol - totalActual); // 타설차수 누적 기준 잔여
-    const actualTrucks = Math.ceil(totalActual / 6);
-    const remainTrucks = Math.ceil(remain / 6);
+    const finalActualDiff = finalActual === null ? null : finalActual - calcVol;
+    const progress = computePourProgress(z, pours);
     const isDrawingNewPour = STATE.editTarget.type === 'actual-new' && STATE.editTarget.id === z.id;
 
     const item = document.createElement('div');
-    item.className = 'zone-item';
-    item.style.cssText = 'flex-direction:column;align-items:stretch;' + (isSelected ? 'border:1px solid var(--primary);background:rgba(59,130,246,0.08);' : '');
+    item.className = 'zone-item' + (isSelected ? ' expanded' : '');
     item.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="dot" style="background:${z.color||'#f59e0b'}"></div>
-        <div class="info" style="flex:1;cursor:pointer">
-          <div style="font-weight:600">${z.zone_name}</div>
-          <div style="font-size:10px;color:var(--text2)">${z.status==='completed'?'완료':'예정'} | ${z.planned_date||'-'} | ${calcVol.toFixed(1)} m³ (${plannedTrucks}대)</div>
-          ${formatBreakdown(z)}
+      <div class="zone-item-head">
+        <button type="button" class="zone-toggle" title="${isSelected ? '접기' : '펼치기'}" aria-expanded="${isSelected}">${isSelected ? '▲' : '▼'}</button>
+        <div class="zone-header-toggle">
+          <div class="dot" style="background:${z.color||'#f59e0b'}"></div>
+          <div class="zone-summary">
+            <div class="zone-name">${z.zone_name}</div>
+            <div class="zone-meta">${z.status==='completed'?'완료':'예정'} · ${z.planned_date||'날짜 미정'}</div>
+          </div>
         </div>
-        <div style="display:flex;gap:2px;flex-shrink:0">
-          <button class="zbtn z-calc" title="체적 산출">▶</button>
+        <div class="zone-actions">
+          <button class="zbtn z-calc" title="체적 산출">m³</button>
           <button class="zbtn z-edit" title="수정">✎</button>
           <button class="zbtn z-del" title="삭제">✕</button>
         </div>
       </div>
+      ${calcVol > 0 ? `
+      <div class="zone-item-stats">
+        <div class="zone-hero-stat">
+          <span class="zone-hero-vol">${calcVol.toFixed(1)} m³</span>
+          <span class="zone-hero-trucks">${trucksLabelFromVol(calcVol)}</span>
+        </div>
+        ${formatZoneStrengthSummary(z)}
+      </div>` : `<div class="zone-item-stats"><div style="font-size:10px;color:var(--text2);margin-top:2px">m³ 체적 산출 필요</div></div>`}
       ${isSelected ? `
       <div class="pour-status-panel">
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px">최종 실제 물량 비교 (타설 완료 후 입력)</div>
-        <div class="pour-input-row actual-dual-row" style="margin-bottom:8px" data-actual-unit="vol">
-          <div class="actual-field">
-            <label>실제 물량(m³)</label>
-            <input type="number" class="actual-volume-input" data-zid="${z.id}" placeholder="m³" step="0.1" value="${z.actual_volume||''}">
+        <div class="pour-block pour-block-plan">
+          <div class="pour-block-head">
+            <div class="pour-section-title">계획 타설</div>
+            <span class="pour-block-tag">PLAN</span>
           </div>
-          <div class="actual-field">
-            <label>레미콘 대수(대)</label>
-            <input type="number" class="actual-truck-input" data-zid="${z.id}" placeholder="대" step="0.1" value="${z.actual_volume ? (z.actual_volume / 6).toFixed(1) : ''}">
+          <div class="pour-block-sub">체적 산출 기준 · 강도별 계획 물량</div>
+          <div class="pour-progress-grid">
+            <div class="pour-progress-cell"><div class="pv">${calcVol.toFixed(1)}</div><div class="pl">계획 m³</div></div>
+            <div class="pour-progress-cell"><div class="pv">${formatTrucks(plannedTrucks)}</div><div class="pl">계획 대수</div></div>
+            <div class="pour-progress-cell"><div class="pv" style="color:${progress.remainTotal>0?'var(--warning)':'var(--success)'}">${progress.remainTotal.toFixed(1)}</div><div class="pl">잔여 m³ (${formatTrucks(progress.remainTrucks)}대)</div></div>
           </div>
-          <button class="btn btn-sm btn-success pour-save-btn" data-zid="${z.id}">최종실제 저장</button>
+          ${renderStrengthTable(progress.planByS) || (calcVol > 0 ? renderStrengthTable({ 합계: calcVol }) : '')}
         </div>
 
-        <div class="pour-compare">
-          <div class="pour-col"><div class="pour-val">${finalActual === null ? '-' : calcVol.toFixed(1)}</div><div class="pour-label">계획 타설(m³)</div></div>
-          <div class="pour-col"><div class="pour-val">${finalActual === null ? '-' : finalActual.toFixed(1)}</div><div class="pour-label">최종 실제(m³)</div></div>
-          <div class="pour-col"><div class="pour-val" style="color:${finalActualDiff === null ? 'var(--text2)' : (finalActualDiff>=0?'var(--warning)':'var(--success)')}">${finalActualDiff === null ? '-' : `${finalActualDiff>=0?'+':''}${finalActualDiff.toFixed(1)}`}</div><div class="pour-label">최종실제-계획 차이</div></div>
+        <div class="pour-block pour-block-progress">
+          <div class="pour-block-head">
+            <div class="pour-section-title">타설 진행</div>
+            <span class="pour-block-tag">누적</span>
+          </div>
+          <div class="pour-block-sub">타설차수 합산 · 강도별 잔여 물량</div>
+          <div class="pour-progress-grid">
+            <div class="pour-progress-cell"><div class="pv">${progress.pouredTotal.toFixed(1)}</div><div class="pl">누적 m³</div></div>
+            <div class="pour-progress-cell"><div class="pv">${formatTrucks(progress.pouredTrucks)}</div><div class="pl">누적 대수</div></div>
+            <div class="pour-progress-cell"><div class="pv" style="color:${progress.remainTotal>0?'var(--warning)':'var(--success)'}">${formatTrucks(progress.remainTrucks)}</div><div class="pl">남은 대수</div></div>
+          </div>
+          ${renderStrengthTable(progress.planByS, { remainByS: progress.remainByS, mode: 'remain' })}
         </div>
 
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px">타설차수 진행 현황 (진행 중 누적 기준)</div>
-        <div class="pour-compare">
-          <div class="pour-col"><div class="pour-val">${calcVol.toFixed(1)}</div><div class="pour-label">계획(m³)</div><div class="pour-label">${plannedTrucks}대</div></div>
-          <div class="pour-col"><div class="pour-val">${totalActual.toFixed(1)}</div><div class="pour-label">누적 타설(m³)</div><div class="pour-label">${actualTrucks}대</div></div>
-          <div class="pour-col"><div class="pour-val" style="color:${remain>0?'var(--warning)':'var(--success)'}">${remain.toFixed(1)}</div><div class="pour-label">계획 대비 잔여(${remainTrucks}대)</div></div>
-        </div>
-
+        <div class="pour-block pour-block-ops">
+        <div class="pour-section-title">타설 폴리라인</div>
+        ${isDrawingNewPour ? renderPourDrawingBanner(z, progress) : ''}
         <div style="display:flex;gap:4px;margin-bottom:6px">
-          <button class="btn btn-sm btn-add-remaining" data-zid="${z.id}" style="flex:1;background:var(--surface2);color:var(--text2);border:1px dashed var(--border)">+ 잔여영역 폴리라인 생성</button>
-          <button class="btn btn-sm btn-add-pour" data-zid="${z.id}" style="flex:1;background:var(--success);color:#fff">${isDrawingNewPour && STATE.drawingPoints.length >= 3 ? '타설 폴리라인 저장' : '+ 타설 폴리라인 그리기'}</button>
+          <button class="btn btn-sm btn-add-remaining" data-zid="${z.id}" style="flex:1;background:var(--surface2);color:var(--text2);border:1px dashed var(--border)">+ 잔여영역</button>
+          <button class="btn btn-sm btn-add-pour" data-zid="${z.id}" style="flex:1;background:var(--success);color:#fff">${isDrawingNewPour && STATE.drawingPoints.length >= 3 ? '✓ 타설 폴리라인 저장' : '+ 타설 폴리라인'}</button>
         </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <div style="font-size:10px;color:var(--text2)">타설차수 목록</div>
+          <div class="pour-section-title" style="margin:0;border:0;padding:0">타설차수</div>
           <button class="zbtn toggle-actuals" title="토글">${collapsedActual[z.id] ? '▸' : '▾'}</button>
         </div>
         <div class="actual-pours-sub" id="actual-sub-${z.id}" style="display:${collapsedActual[z.id] ? 'none' : 'block'}"></div>
+        </div>
+
+        <div class="pour-final-section">
+          <div class="pour-section-title" style="margin-top:0;border:0;padding:0">최종 실제 물량 <span style="font-weight:400">(전체 타설 완료 후)</span></div>
+          <div class="pour-input-row actual-dual-row" style="margin-bottom:6px" data-actual-unit="vol">
+            <div class="actual-field">
+              <label>실제 물량(m³)</label>
+              <input type="number" class="actual-volume-input" data-zid="${z.id}" placeholder="완료 후 입력" step="0.1" value="${z.actual_volume||''}">
+            </div>
+            <div class="actual-field">
+              <label>레미콘(대)</label>
+              <input type="number" class="actual-truck-input" data-zid="${z.id}" placeholder="대" step="0.5" value="${z.actual_volume ? formatTrucks(trucksFromVol(z.actual_volume)) : ''}">
+            </div>
+            <button class="btn btn-sm btn-success pour-save-btn" data-zid="${z.id}">저장</button>
+          </div>
+          ${finalActual !== null ? `
+          <div class="pour-compare">
+            <div class="pour-col"><div class="pour-val">${calcVol.toFixed(1)}</div><div class="pour-label">계획(m³)</div></div>
+            <div class="pour-col"><div class="pour-val">${finalActual.toFixed(1)}</div><div class="pour-label">최종 실제(m³)</div></div>
+            <div class="pour-col"><div class="pour-val" style="color:${finalActualDiff>=0?'var(--warning)':'var(--success)'}">${finalActualDiff>=0?'+':''}${finalActualDiff.toFixed(1)}</div><div class="pour-label">차이(m³)</div></div>
+          </div>` : `<div style="font-size:9px;color:var(--text2)">타설차수를 모두 마친 뒤 현장 실측값을 입력하세요.</div>`}
+        </div>
       </div>` : ''}`;
 
-    item.querySelector('.info').onclick = async () => {
-      // 같은 구역 재클릭 시 접기(토글 닫기)
-      if (STATE.selectedZone && STATE.selectedZone.id === z.id && STATE.editTarget.type === 'zone') {
-        STATE.selectedZone = null;
-        STATE.editingActual = false;
-        STATE.editTarget = { type: 'zone', id: null };
-        selectedActualPourId = null;
-        STATE.drawingPoints = [];
-        clearZone3DHighlight();
-        renderZoneList();
-        draw2D();
-        closeSidebarOnMobile();
-        return;
-      }
-
-      STATE.selectedZone = z;
-      STATE.editingActual = false;
-      STATE.editTarget = { type: 'zone', id: z.id };
-      selectedActualPourId = null;
-      STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
-      await selectZoneAndShowMesh(z);
-      renderZoneList();
-      draw2D();
-      closeSidebarOnMobile();
+    const onSelectZone = async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await expandZone(z);
     };
+    const onToggleExpand = async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await toggleZoneExpand(z);
+    };
+    item.querySelector('.zone-toggle').onclick = onToggleExpand;
+    item.querySelector('.zone-header-toggle').onclick = onSelectZone;
+    const statsEl = item.querySelector('.zone-item-stats');
+    if (statsEl) statsEl.onclick = onSelectZone;
     item.querySelector('.z-calc').onclick = async (ev) => {
       ev.stopPropagation();
-      STATE.selectedZone = z;
-      STATE.editingActual = false;
-      STATE.editTarget = { type: 'zone', id: z.id };
-      STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
-      await selectZoneAndShowMesh(z);
-      draw2D();
+      await expandZone(z);
       await runCalculation(z.id);
       dirtyZoneOutlines.delete(z.id);
       updateMobileZoneActions();
@@ -1528,7 +2033,7 @@ function renderZoneList() {
           volumeInput.oninput = () => {
             dualRow.dataset.actualUnit = 'vol';
             const vol = parseFloat(volumeInput.value);
-            truckInput.value = !isNaN(vol) && vol > 0 ? (vol / 6).toFixed(1) : '';
+            truckInput.value = !isNaN(vol) && vol > 0 ? formatTrucks(trucksFromVol(vol)) : '';
           };
           truckInput.oninput = () => {
             dualRow.dataset.actualUnit = 'trucks';
@@ -1703,21 +2208,30 @@ async function loadActualPoursInline(zoneId, rerender = false) {
     } else {
       container.innerHTML = '';
       let cumulative = 0;
-      const plan = (STATE.selectedZone && STATE.selectedZone.id === zoneId) ? (STATE.selectedZone.calculated_volume || 0) : 0;
+      const zone = STATE.zones.find(z => z.id === zoneId) || STATE.selectedZone || {};
+      const planVol = zone.calculated_volume || 0;
+      const planByS = zone.volume_by_strength || {};
       pours.forEach((ap, idx) => {
         cumulative += (ap.volume || 0);
-        const rem = Math.max(0, plan - cumulative);
-        const remTr = Math.ceil(rem / 6);
+        const { remainPlan } = buildPouredByStrength(pours, planByS, idx + 1);
+        const remainByS = remainByStrengthForPlan(planByS, remainPlan);
+        const cumRem = Math.max(0, planVol - cumulative);
+        const thisVol = ap.volume || 0;
         const row = document.createElement('div');
         row.className = 'actual-pour-row';
         row.innerHTML = `
           <span class="ap-dot"></span>
-          <span class="ap-name">${ap.pour_label || `${idx+1}차 타설`}</span>
-          <span class="ap-info">이번 ${(ap.volume||0).toFixed(1)}m³ / 계획 대비 잔여 ${rem.toFixed(1)}m³(${remTr}대)</span>
+          <span class="ap-name">${ap.pour_label || `${idx+1}차`}</span>
           <span class="ap-actions">
-            <button class="zbtn ap-calc" title="체적계산">▶</button>
+            <button class="zbtn ap-calc" title="체적계산">m³</button>
             <button class="zbtn ap-show" title="편집">◎</button>
             <button class="zbtn z-del" title="삭제">✕</button>
+          </span>
+          <span class="ap-info">
+            <div><strong>${thisVol.toFixed(1)} m³ · ${trucksLabelFromVol(thisVol)}</strong>${thisVol <= 0 ? ' <span style="color:var(--warning)">m³ 계산 필요</span>' : ''}</div>
+            ${formatPourStrengthLines(ap)}
+            <div style="margin-top:3px;color:${cumRem>0?'var(--warning)':'var(--success)'}">잔여 ${cumRem.toFixed(1)} m³ · ${trucksLabelFromVol(cumRem)}</div>
+            ${renderStrengthTable(planByS, { remainByS, mode: 'remain', compact: true, showHeader: false })}
           </span>`;
         row.querySelector('.ap-show').onclick = (ev) => {
           ev.stopPropagation();
@@ -1744,7 +2258,13 @@ async function loadActualPoursInline(zoneId, rerender = false) {
             calcOverlay.setProgress(100, '완료');
             await new Promise(r => setTimeout(r, 250));
             calcOverlay.remove();
-            showToast(`${ap.pour_label}: ${cd.volume.toFixed(2)} m³ (${cd.trucks}대)`, 'success');
+            showToast(`${ap.pour_label}: ${cd.volume.toFixed(2)} m³ (${formatTrucks(trucksFromVol(cd.volume))}대)`, 'success');
+            if (cd.by_strength && Object.keys(cd.by_strength).length) {
+              const parts = sortedStrengthKeys(cd.by_strength).map(k =>
+                `${formatStrengthLabel(k)} ${(cd.by_strength[k]||0).toFixed(1)}m³`
+              ).join(' · ');
+              setTimeout(() => showToast(parts, 'success'), 400);
+            }
             await loadActualPoursInline(zoneId, false);
             loadZones();
           } catch(e) {
@@ -1767,7 +2287,12 @@ async function loadActualPoursInline(zoneId, rerender = false) {
       });
     }
   }
-  if (rerender) renderZoneList();
+  if (rerender || (STATE.selectedZone && STATE.selectedZone.id === zoneId)) {
+    renderZoneList();
+  }
+  if (STATE.selectedZone && STATE.selectedZone.id === zoneId && view3dPouredMuted) {
+    await refreshZone3DVisualization(STATE.selectedZone);
+  }
   draw2D();
 }
 
@@ -1782,8 +2307,6 @@ function showZoneModal(existingZone) {
     <select id="m-status"><option value="planned" ${zone.status==='planned'||!zone.status?'selected':''}>타설 예정</option><option value="completed" ${zone.status==='completed'?'selected':''}>타설 완료</option></select>
     <label style="font-size:11px;color:var(--text2);margin-top:4px">예정 날짜</label>
     <input type="date" id="m-planned-date" value="${zone.planned_date||today}">
-    ${existingZone ? `<label style="font-size:11px;color:var(--text2);margin-top:4px">최종 실제 체적 (m³)</label>
-    <input type="number" id="m-actual-vol" placeholder="완료 후 실제 타설 체적" step="0.01" value="${zone.actual_volume||''}">` : ''}
     <textarea id="m-memo" placeholder="메모">${zone.memo||''}</textarea>
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" id="m-cancel">취소</button>
@@ -1808,12 +2331,10 @@ async function saveZone(overlay, existing) {
   const name = overlay.querySelector('#m-zone-name').value || `구역-${Date.now()%1000}`;
   const status = overlay.querySelector('#m-status').value;
   const planned_date = overlay.querySelector('#m-planned-date').value || null;
-  const actualEl = overlay.querySelector('#m-actual-vol');
-  const actual_volume = actualEl ? (parseFloat(actualEl.value) || null) : null;
   const memo = overlay.querySelector('#m-memo').value || null;
 
   if (existing) {
-    const body = {zone_name:name, status, planned_date, actual_volume, memo};
+    const body = { zone_name: name, status, planned_date, memo };
     // 폴리라인 편집된 경우 polygon도 업데이트
     if (STATE.drawingPoints.length >= 3) {
       body.polygon = STATE.drawingPoints.map(p => ({x:p.x, y:p.y}));
@@ -2169,17 +2690,18 @@ function drawEdgeSegOn(c, seg) {
 }
 
 function drawStrengthZonesOn2D(c) {
-  STATE.strengthZones.forEach(sz => {
+  STATE.strengthZones.forEach((sz, idx) => {
     if (!sz.polygon || sz.polygon.length < 3) return;
     if (STATE.editTarget.type === 'strength-zone' && STATE.editTarget.id === sz.id) return;
+    const color = strengthZoneColor(idx);
     c.beginPath();
     sz.polygon.forEach((p, i) => {
       const s = worldToScreen(p.x, p.y);
       if (i === 0) c.moveTo(s.x, s.y); else c.lineTo(s.x, s.y);
     });
     c.closePath();
-    c.fillStyle = 'rgba(239,68,68,0.12)';
-    c.strokeStyle = '#ef4444';
+    c.fillStyle = hexToRgba(color, 0.14);
+    c.strokeStyle = color;
     c.lineWidth = 2;
     c.setLineDash([6, 4]);
     c.fill();
@@ -2188,10 +2710,10 @@ function drawStrengthZonesOn2D(c) {
     const cen = sz.polygon.reduce((a,p)=>({x:a.x+p.x,y:a.y+p.y}), {x:0,y:0});
     cen.x /= sz.polygon.length; cen.y /= sz.polygon.length;
     const sp = worldToScreen(cen.x, cen.y);
-    c.fillStyle = '#ef4444';
+    c.fillStyle = color;
     c.font = 'bold 11px sans-serif';
     c.textAlign = 'center';
-    c.fillText(`${sz.strength}MPa`, sp.x, sp.y);
+    c.fillText(`${sz.zone_name||''} ${sz.strength}MPa`.trim(), sp.x, sp.y);
   });
 }
 
@@ -2286,6 +2808,51 @@ function drawCurrentPolygon(c) {
 let isPanning2D = false, panStart = {x:0,y:0};
 const VERTEX_HIT_RADIUS = 8;  // px
 
+async function endCanvasPointerDrag() {
+  if (STATE.draggingVertex === null && !isPanning2D) return;
+  const wasVertex = STATE.draggingVertex;
+  isPanning2D = false;
+  STATE.draggingVertex = null;
+  if (wasVertex !== null && wasVertex !== undefined && STATE.drawingPoints.length >= 3) {
+    await persistEditingPolygon();
+  }
+}
+
+function beginVertexDrag(index, pointerId) {
+  STATE.draggingVertex = index;
+  if (pointerId != null && canvas2d.setPointerCapture) {
+    try { canvas2d.setPointerCapture(pointerId); } catch (_) { /* ignore */ }
+  }
+}
+
+function canvasCoordsFromClient(clientX, clientY) {
+  const rect = canvas2d.getBoundingClientRect();
+  return { sx: clientX - rect.left, sy: clientY - rect.top };
+}
+
+function handleCanvasDragMove(sx, sy) {
+  if (STATE.draggingVertex !== null && STATE.draggingVertex !== undefined) {
+    const w = screenToWorld(sx, sy);
+    if (canPlaceDrawingPoint(w)) {
+      STATE.drawingPoints[STATE.draggingVertex] = w;
+    }
+    updateDrawFloatingActions();
+    requestDraw2D();
+    return true;
+  }
+  if (isPanning2D) {
+    const dx = sx - panStart.x;
+    const dy = sy - panStart.y;
+    view2d.cx -= dx / view2d.scale;
+    view2d.cy += dy / view2d.scale;
+    panStart = { x: sx, y: sy };
+    markViewInteracting();
+    requestDraw2D();
+    return true;
+  }
+  return false;
+}
+
 function findDrawingVertexAt(sx, sy, radius = VERTEX_HIT_RADIUS) {
   for (let i = 0; i < STATE.drawingPoints.length; i++) {
     const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
@@ -2350,7 +2917,7 @@ async function handlePolylineEditGesture(sx, sy, { persist = false, allowBelow3 
   return false;
 }
 
-canvas2d.addEventListener('mousedown', e => {
+canvas2d.addEventListener('mousedown', async e => {
   if (STATE.tool === 'pan' || e.button === 1) {
     isPanning2D = true; panStart = {x:e.offsetX, y:e.offsetY}; return;
   }
@@ -2384,7 +2951,8 @@ canvas2d.addEventListener('mousedown', e => {
       for (let i = 0; i < STATE.drawingPoints.length; i++) {
         const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
         if (Math.sqrt((p.x-e.offsetX)**2 + (p.y-e.offsetY)**2) <= VERTEX_HIT_RADIUS) {
-          STATE.draggingVertex = i;
+          beginVertexDrag(i, e.pointerId);
+          e.preventDefault();
           return;
         }
       }
@@ -2395,7 +2963,8 @@ canvas2d.addEventListener('mousedown', e => {
       for (let i = 0; i < STATE.drawingPoints.length; i++) {
         const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
         if (Math.sqrt((p.x-e.offsetX)**2 + (p.y-e.offsetY)**2) <= VERTEX_HIT_RADIUS) {
-          STATE.draggingVertex = i;
+          beginVertexDrag(i, e.pointerId);
+          e.preventDefault();
           return;
         }
       }
@@ -2420,59 +2989,34 @@ canvas2d.addEventListener('mousedown', e => {
     }
     for (const z of STATE.zones) {
       if (z.polygon && z.polygon.length >= 3 && pointInPolygon(w, z.polygon)) {
-        STATE.selectedZone = z;
-        STATE.editingActual = false;
-        STATE.editTarget = { type: 'zone', id: z.id };
-        selectedActualPourId = null;
-        STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
-        selectZoneAndShowMesh(z);
+        await expandZone(z);
         found = true;
-        draw2D();
         showToast(`"${z.zone_name}" 선택됨 (꼭짓점 드래그로 편집, Del 삭제)`, 'success');
         break;
       }
     }
     if (!found && STATE.selectedZone) {
-      STATE.selectedZone = null;
-      STATE.drawingPoints = [];
-      clearZone3DHighlight();
-      draw2D();
+      await collapseZoneExpand();
     }
   }
 });
 
 canvas2d.addEventListener('mousemove', e => {
-  // 꼭짓점 드래그
-  if (STATE.draggingVertex !== null && STATE.draggingVertex !== undefined) {
-    const w = screenToWorld(e.offsetX, e.offsetY);
-    if (canPlaceDrawingPoint(w)) {
-      STATE.drawingPoints[STATE.draggingVertex] = w;
-    }
-    updateDrawFloatingActions();
-    requestDraw2D();
-    return;
-  }
-  if (isPanning2D) {
-    const dx = e.offsetX - panStart.x;
-    const dy = e.offsetY - panStart.y;
-    view2d.cx -= dx / view2d.scale;
-    view2d.cy += dy / view2d.scale;
-    panStart = {x:e.offsetX, y:e.offsetY};
-    markViewInteracting();
-    requestDraw2D();
-    return;
-  }
+  if (handleCanvasDragMove(e.offsetX, e.offsetY)) return;
   const w = screenToWorld(e.offsetX, e.offsetY);
   document.getElementById('status-cursor').textContent = `X: ${Math.round(w.x)}, Y: ${Math.round(w.y)}`;
 });
 
-canvas2d.addEventListener('mouseup', async () => {
-  if (STATE.draggingVertex !== null && STATE.drawingPoints.length >= 3) {
-    await persistEditingPolygon();
-  }
-  isPanning2D = false;
-  STATE.draggingVertex = null;
+window.addEventListener('mousemove', e => {
+  if (STATE.draggingVertex === null && !isPanning2D) return;
+  const { sx, sy } = canvasCoordsFromClient(e.clientX, e.clientY);
+  handleCanvasDragMove(sx, sy);
 });
+
+canvas2d.addEventListener('mouseup', () => { endCanvasPointerDrag(); });
+window.addEventListener('mouseup', () => { endCanvasPointerDrag(); });
+window.addEventListener('pointerup', () => { endCanvasPointerDrag(); });
+window.addEventListener('pointercancel', () => { endCanvasPointerDrag(); });
 
 canvas2d.addEventListener('dblclick', async e => {
   const sx = e.offsetX, sy = e.offsetY;
@@ -2740,7 +3284,7 @@ canvas2d.addEventListener('touchstart', e => {
       for (let i = 0; i < STATE.drawingPoints.length; i++) {
         const p = worldToScreen(STATE.drawingPoints[i].x, STATE.drawingPoints[i].y);
         if (Math.sqrt((p.x-tx)**2 + (p.y-ty)**2) <= VERTEX_HIT_RADIUS * 1.5) {
-          STATE.draggingVertex = i;
+          beginVertexDrag(i, e.touches[0]?.identifier);
           return;
         }
       }
@@ -2784,11 +3328,7 @@ canvas2d.addEventListener('touchmove', e => {
     }
 
     if (STATE.draggingVertex !== null) {
-      const w = screenToWorld(tx, ty);
-      if (canPlaceDrawingPoint(w)) {
-        STATE.drawingPoints[STATE.draggingVertex] = w;
-      }
-      draw2D();
+      handleCanvasDragMove(tx, ty);
       return;
     }
     if (touchState.lastCenter) {
@@ -2812,7 +3352,6 @@ canvas2d.addEventListener('touchend', async e => {
       allowBelow3: STATE.tool === 'draw',
       radius: VERTEX_HIT_RADIUS * 1.5
     });
-    STATE.draggingVertex = null;
     touchState.touching = false;
     touchState.lastDist = 0;
     touchState.lastCenter = null;
@@ -2820,10 +3359,7 @@ canvas2d.addEventListener('touchend', async e => {
     if (handled) return;
   }
 
-  if (STATE.draggingVertex !== null && STATE.drawingPoints.length >= 3) {
-    await persistEditingPolygon();
-  }
-  STATE.draggingVertex = null;
+  await endCanvasPointerDrag();
 
   if (e.touches.length === 0 && touchState.touching) {
     if (!touchState.moved && elapsed < 300 && touchState.startPos) {
@@ -2861,13 +3397,7 @@ canvas2d.addEventListener('touchend', async e => {
         }
         for (const z of STATE.zones) {
           if (z.polygon && z.polygon.length >= 3 && pointInPolygon(w, z.polygon)) {
-            STATE.selectedZone = z;
-            STATE.editingActual = false;
-            STATE.editTarget = { type: 'zone', id: z.id };
-            selectedActualPourId = null;
-            STATE.drawingPoints = z.polygon.map(p => ({x:p.x, y:p.y}));
-            selectZoneAndShowMesh(z);
-            draw2D();
+            await expandZone(z);
             showToast(`"${z.zone_name}" 선택됨`, 'success');
             break;
           }
@@ -2898,6 +3428,73 @@ document.querySelectorAll('#draw-tools .tool-btn').forEach(btn => {
 
 // ===================== 3D VIEW =====================
 let scene3d, camera3d, renderer3d, controls3d, modelGroup, intersectGroup;
+let view3dPouredMuted = localStorage.getItem('concast-3d-poured-muted') === '1';
+
+const POURED_MUTED_COLOR_3D = {
+  '수평': { 21: '#5f7a82', 24: '#6b9099', 27: '#5f858f', 30: '#4f757f', 35: '#8a9a7a', 40: '#7a9070', 45: '#6a8060' },
+  '벽체': { 21: '#627a92', 24: '#6a7f9a', 27: '#5a7090', 30: '#4a6080', 35: '#9a8470', 40: '#9a7055', 45: '#8a6048' },
+  '기둥': { 21: '#857595', 24: '#8a7899', 27: '#786888', 30: '#685878', 35: '#9a8068', 40: '#9a6855', 45: '#8a5848' },
+  '미분류': { 24: '#7a8494', 35: '#8a8480', 40: '#78716c' },
+};
+
+function resolvePouredMutedColorHex3D(part, strength) {
+  part = normalizePartTypeClient(part);
+  const row = POURED_MUTED_COLOR_3D[part] || POURED_MUTED_COLOR_3D['미분류'];
+  const s = parseStrength3D(strength);
+  if (s == null) return '#7a8494';
+  if (row[s]) return row[s];
+  const keys = Object.keys(row).map(Number).sort((a, b) => a - b);
+  if (s <= keys[0]) return row[keys[0]];
+  if (s >= keys[keys.length - 1]) return row[keys[keys.length - 1]];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const lo = keys[i], hi = keys[i + 1];
+    if (s >= lo && s <= hi) return _lerpHex3D(row[lo], row[hi], (s - lo) / (hi - lo));
+  }
+  return row[keys[keys.length - 1]];
+}
+
+function initView3dControls() {
+  const toggle = document.getElementById('toggle-3d-poured-muted');
+  const label = document.getElementById('label-3d-poured-muted');
+  const hint = document.getElementById('view3d-poured-hint');
+  if (!toggle) return;
+  toggle.checked = view3dPouredMuted;
+  label?.classList.toggle('active', view3dPouredMuted);
+  hint?.classList.toggle('visible', view3dPouredMuted);
+  updateView3dLegendMode();
+  toggle.onchange = async () => {
+    view3dPouredMuted = toggle.checked;
+    localStorage.setItem('concast-3d-poured-muted', view3dPouredMuted ? '1' : '0');
+    label?.classList.toggle('active', view3dPouredMuted);
+    hint?.classList.toggle('visible', view3dPouredMuted);
+    updateView3dLegendMode();
+    if (STATE.selectedZone) await refreshZone3DVisualization(STATE.selectedZone);
+  };
+}
+
+function updateView3dLegendMode() {
+  const legend = document.getElementById('view3d-legend');
+  if (!legend) return;
+  if (view3dPouredMuted) {
+    legend.innerHTML = `
+      <span style="font-weight:600;color:var(--text);margin-bottom:2px">타설 완료 (단조)</span>
+      <span><span class="legend-dot" style="background:#6b9099"></span>수평·24</span>
+      <span><span class="legend-dot" style="background:#8a9a7a"></span>수평·35</span>
+      <span><span class="legend-dot" style="background:#6a7f9a"></span>벽·24</span>
+      <span><span class="legend-dot" style="background:#9a8470"></span>벽·35</span>
+      <span><span class="legend-dot" style="background:#8a7899"></span>柱·24</span>
+      <span><span class="legend-dot" style="background:#9a8068"></span>柱·35</span>`;
+  } else {
+    legend.innerHTML = `
+      <span style="font-weight:600;color:var(--text);margin-bottom:2px">부재 × 강도</span>
+      <span><span class="legend-dot" style="background:#22d3ee"></span>수평 24</span>
+      <span><span class="legend-dot" style="background:#fde047"></span>수평 35</span>
+      <span><span class="legend-dot" style="background:#3b82f6"></span>벽체 24</span>
+      <span><span class="legend-dot" style="background:#fb923c"></span>벽체 35</span>
+      <span><span class="legend-dot" style="background:#a855f7"></span>기둥 24</span>
+      <span><span class="legend-dot" style="background:#f97316"></span>기둥 35</span>`;
+  }
+}
 
 const PART_3D_STYLE = {
   '수평': { color: 0x22d3ee, opacity: 0.10, edge: true, edgeOpacity: 0.30, order: 0, depthWrite: false },
@@ -2906,54 +3503,114 @@ const PART_3D_STYLE = {
   '미분류': { color: 0x94a3b8, opacity: 0.55, edge: true, edgeOpacity: 0.42, order: 1, depthWrite: true },
 };
 
-function normalizePartTypeClient(raw) {
-  const t = String(raw || '').trim();
-  if (!t) return '미분류';
-  if (t === '수평' || t.includes('수평') || /^h$|horizontal|slab/i.test(t)) return '수평';
-  if (t === '벽체' || t.includes('벽') || /^w$|wall/i.test(t)) return '벽체';
-  if (t === '기둥' || t.includes('기둥') || /^c$|column|col/i.test(t)) return '기둥';
-  return t;
-}
-
 function partStyle3D(partType) {
   return PART_3D_STYLE[normalizePartTypeClient(partType)] || PART_3D_STYLE['미분류'];
 }
 
-function parseCssColor(str) {
-  if (!str) return null;
-  try {
-    const s = String(str).trim();
-    const hm = s.match(/^hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%/i);
-    if (hm) {
-      const c = new THREE.Color();
-      c.setHSL(parseFloat(hm[1]) / 360, parseFloat(hm[2]) / 100, parseFloat(hm[3]) / 100);
-      return c;
-    }
-    return new THREE.Color(s);
-  } catch (e) {
-    return null;
-  }
+function resolveMemberColor3D(part, strength) {
+  part = normalizePartTypeClient(part);
+  const hex = resolveMemberColorHex3D(part, strength);
+  if (hex) return new THREE.Color(hex);
+  return new THREE.Color(PART_3D_STYLE[part]?.color ?? 0x94a3b8);
 }
 
-function memberBodyColor3D(part, strength, serverColor) {
-  const parsed = parseCssColor(serverColor);
-  if (parsed) return parsed;
-  const style = partStyle3D(part);
-  return new THREE.Color(style.color);
+function memberBodyColor3D(part, strength) {
+  return resolveMemberColor3D(part, strength);
 }
 
-function memberEdgeColor3D(part, strength, serverColor) {
-  const base = memberBodyColor3D(part, strength, serverColor);
+function memberEdgeColor3D(part, strength) {
+  const base = resolveMemberColor3D(part, strength);
+  const edge = base.clone();
+  edge.multiplyScalar(0.72);
+  return edge;
+}
+
+function createPouredMaterial3D(part, strength) {
+  const partNorm = normalizePartTypeClient(part);
+  const bodyCol = new THREE.Color(resolvePouredMutedColorHex3D(partNorm, strength));
+  const opacity = partNorm === '수평' ? 0.78 : 0.84;
+  return new THREE.MeshPhongMaterial({
+    color: bodyCol,
+    emissive: bodyCol.clone().multiplyScalar(0.12),
+    emissiveIntensity: 0.22,
+    transparent: true,
+    opacity,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    depthTest: true,
+    shininess: 18,
+    flatShading: false,
+    polygonOffset: partNorm !== '수평',
+    polygonOffsetFactor: partNorm !== '수평' ? -8 : 0,
+    polygonOffsetUnits: partNorm !== '수평' ? -8 : 0,
+  });
+}
+
+function clearOverlayMeshes3D() {
+  const toRemove = [];
+  intersectGroup.children.forEach(child => {
+    if (child.userData?.isIntersection || child.userData?.isPouredMesh) toRemove.push(child);
+  });
+  toRemove.forEach(c => intersectGroup.remove(c));
+}
+
+function appendIntersectionObject3D(obj, material, edgeMaterial, userDataExtra, renderOrderBase) {
+  const part = normalizePartTypeClient(obj.part_type);
   const style = partStyle3D(part);
-  const edgeCol = new THREE.Color(style.color);
-  edgeCol.lerp(base, 0.72);
-  return edgeCol;
+  const geom = new THREE.BufferGeometry();
+  const verts = new Float32Array(obj.vertices.flat());
+  geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+  const indices = [];
+  obj.faces.forEach(f => { indices.push(f[0], f[1], f[2]); });
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.renderOrder = renderOrderBase + (style.order ?? 1);
+  mesh.userData = {
+    part_type: part,
+    strength: obj.strength,
+    baseOpacity: material.opacity,
+    depthWrite: material.depthWrite !== false,
+    ...userDataExtra,
+  };
+  intersectGroup.add(mesh);
+
+  const edgeLine = new THREE.LineSegments(new THREE.EdgesGeometry(geom), edgeMaterial);
+  edgeLine.renderOrder = mesh.renderOrder + 1;
+  edgeLine.userData = { ...userDataExtra, part_type: part };
+  intersectGroup.add(edgeLine);
+  return mesh;
+}
+
+function createMemberMaterial3D(part, strength) {
+  const partNorm = normalizePartTypeClient(part);
+  const style = partStyle3D(partNorm);
+  const bodyCol = memberBodyColor3D(partNorm, strength);
+  const emissive = bodyCol.clone().multiplyScalar(0.18);
+  const isTransparent = style.opacity < 0.99;
+  return new THREE.MeshPhongMaterial({
+    color: bodyCol,
+    emissive,
+    emissiveIntensity: 0.45,
+    transparent: isTransparent,
+    opacity: style.opacity,
+    side: THREE.DoubleSide,
+    depthWrite: style.depthWrite !== false,
+    depthTest: true,
+    shininess: partNorm === '수평' ? 28 : 90,
+    flatShading: false,
+    polygonOffset: partNorm !== '수평',
+    polygonOffsetFactor: partNorm !== '수평' ? -8 : 0,
+    polygonOffsetUnits: partNorm !== '수평' ? -8 : 0,
+  });
 }
 
 function restoreMemberMeshStyle(mesh) {
   const ud = mesh.userData;
   if (!mesh.material || !ud.baseColor) return;
   mesh.material.color.copy(ud.baseColor);
+  if (mesh.material.emissive) mesh.material.emissive.setHex(0x000000);
   mesh.material.opacity = ud.baseOpacity;
   mesh.material.transparent = ud.baseOpacity < 1;
   mesh.material.depthWrite = ud.depthWrite !== false;
@@ -2962,10 +3619,212 @@ function restoreMemberMeshStyle(mesh) {
   if (ud.edgeLine) {
     ud.edgeLine.visible = true;
     if (ud.edgeLine.material) {
+      ud.edgeLine.material.color.copy(memberEdgeColor3D(ud.part_type, ud.strength));
       ud.edgeLine.material.opacity = ud.edgeOpacity ?? 0.55;
       ud.edgeLine.material.needsUpdate = true;
     }
   }
+}
+
+function getPourPolygonsFromPours(pours) {
+  return (pours || [])
+    .filter(p => p.polygon && p.polygon.length >= 3)
+    .map(p => p.polygon);
+}
+
+function meshSamplePointsXY(mesh) {
+  const geom = mesh.geometry;
+  if (!geom.boundingBox) geom.computeBoundingBox();
+  const bb = geom.boundingBox;
+  if (!bb) return [];
+  const cx = (bb.min.x + bb.max.x) / 2;
+  const cy = (bb.min.y + bb.max.y) / 2;
+  return [
+    { x: cx, y: cy },
+    { x: bb.min.x, y: bb.min.y },
+    { x: bb.max.x, y: bb.min.y },
+    { x: bb.min.x, y: bb.max.y },
+    { x: bb.max.x, y: bb.max.y },
+  ];
+}
+
+function bboxOverlapsPolygonXY(bb, poly) {
+  if (poly.some(p => p.x >= bb.min.x && p.x <= bb.max.x && p.y >= bb.min.y && p.y <= bb.max.y)) return true;
+  for (let i = 0; i <= 7; i++) {
+    for (let j = 0; j <= 7; j++) {
+      const pt = {
+        x: bb.min.x + (bb.max.x - bb.min.x) * i / 7,
+        y: bb.min.y + (bb.max.y - bb.min.y) * j / 7,
+      };
+      if (pointInPolygon(pt, poly)) return true;
+    }
+  }
+  return false;
+}
+
+function horizontalPourOverlapRatio(mesh, pourPolygons) {
+  const geom = mesh.geometry;
+  if (!geom.boundingBox) geom.computeBoundingBox();
+  const bb = geom.boundingBox;
+  if (!bb) return 0;
+  let inside = 0;
+  let total = 0;
+  for (let i = 0; i <= 11; i++) {
+    for (let j = 0; j <= 11; j++) {
+      const pt = {
+        x: bb.min.x + (bb.max.x - bb.min.x) * i / 11,
+        y: bb.min.y + (bb.max.y - bb.min.y) * j / 11,
+      };
+      total++;
+      if (pourPolygons.some(poly => pointInPolygon(pt, poly))) inside++;
+    }
+  }
+  const pos = geom.attributes?.position;
+  if (pos) {
+    const step = Math.max(1, Math.floor(pos.count / 240));
+    const seen = new Set();
+    for (let k = 0; k < pos.count; k += step) {
+      const x = pos.getX(k);
+      const y = pos.getY(k);
+      const key = `${x.toFixed(0)},${y.toFixed(0)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      total++;
+      if (pourPolygons.some(poly => pointInPolygon({ x, y }, poly))) inside++;
+    }
+  }
+  return total > 0 ? inside / total : 0;
+}
+
+function isHorizontalMember3D(mesh) {
+  const part = normalizePartTypeClient(mesh.userData?.part_type);
+  return part === '수평' || mesh.userData?.orientation === 'horizontal';
+}
+
+function memberIntersectsPourArea(mesh, pourPolygons) {
+  if (!pourPolygons.length) return false;
+  if (isHorizontalMember3D(mesh)) {
+    const geom = mesh.geometry;
+    if (!geom.boundingBox) geom.computeBoundingBox();
+    const bb = geom.boundingBox;
+    if (!bb) return false;
+    if (!pourPolygons.some(poly => bboxOverlapsPolygonXY(bb, poly))) return false;
+    return horizontalPourOverlapRatio(mesh, pourPolygons) > 0.008;
+  }
+  const pts = meshSamplePointsXY(mesh);
+  return pourPolygons.some(poly => pts.some(pt => pointInPolygon(pt, poly)));
+}
+
+function slabZForPourPolygon(poly) {
+  let zTop = -Infinity;
+  modelGroup.children.forEach(child => {
+    if (!child.isMesh || !child.userData.isMember) return;
+    if (!isHorizontalMember3D(child)) return;
+    const geom = child.geometry;
+    if (!geom.boundingBox) geom.computeBoundingBox();
+    const bb = geom.boundingBox;
+    if (!bb || !bboxOverlapsPolygonXY(bb, poly)) return;
+    zTop = Math.max(zTop, bb.max.z);
+  });
+  if (zTop > -Infinity) return zTop + 10;
+  const bbox = previewData?.bbox;
+  return bbox ? bbox.max.z + 10 : 10;
+}
+
+function dominantStrengthFromPour(ap) {
+  const byS = ap.volume_by_strength || {};
+  const keys = sortedStrengthKeys(byS);
+  if (!keys.length) return 24;
+  return Number(keys[0]) || 24;
+}
+
+function renderPouredSlabOverlays(pours) {
+  (pours || []).forEach(ap => {
+    const poly = ap.polygon;
+    if (!poly || poly.length < 3) return;
+
+    const z = slabZForPourPolygon(poly);
+    const strength = dominantStrengthFromPour(ap);
+    const shape = new THREE.Shape();
+    poly.forEach((pt, i) => {
+      if (i === 0) shape.moveTo(pt.x, pt.y);
+      else shape.lineTo(pt.x, pt.y);
+    });
+
+    const geom = new THREE.ShapeGeometry(shape);
+    const mat = createPouredMaterial3D('수평', strength);
+    mat.opacity = 0.88;
+    mat.depthWrite = false;
+    mat.depthTest = true;
+    mat.side = THREE.DoubleSide;
+    mat.polygonOffset = true;
+    mat.polygonOffsetFactor = -4;
+    mat.polygonOffsetUnits = -4;
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.z = z;
+    mesh.renderOrder = 24;
+    mesh.userData = { isPouredMesh: true, isPouredSlabOverlay: true, pourId: ap.id };
+    intersectGroup.add(mesh);
+
+    const edgeCol = new THREE.Color(resolvePouredMutedColorHex3D('수평', strength)).multiplyScalar(0.72);
+    const edgeLine = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geom),
+      new THREE.LineBasicMaterial({ color: edgeCol, transparent: true, opacity: 0.72, depthWrite: false })
+    );
+    edgeLine.position.z = z + 3;
+    edgeLine.renderOrder = 25;
+    edgeLine.userData = { isPouredMesh: true, isPouredSlabOverlay: true, pourId: ap.id };
+    intersectGroup.add(edgeLine);
+  });
+}
+
+function applyPouredMutedMemberStyle(mesh) {
+  const ud = mesh.userData;
+  if (!mesh.material) return;
+  const horizontal = isHorizontalMember3D(mesh);
+  const part = normalizePartTypeClient(ud.part_type);
+  const hex = resolvePouredMutedColorHex3D(part, ud.strength);
+  const col = new THREE.Color(hex);
+  mesh.material.color.copy(col);
+  if (mesh.material.emissive) mesh.material.emissive.copy(col.clone().multiplyScalar(horizontal ? 0.14 : 0.1));
+  mesh.material.opacity = horizontal ? 0.78 : 0.84;
+  mesh.material.transparent = true;
+  mesh.material.depthWrite = !horizontal;
+  mesh.material.needsUpdate = true;
+  if (ud.edgeLine?.material) {
+    ud.edgeLine.material.color.copy(col.clone().multiplyScalar(0.72));
+    ud.edgeLine.material.opacity = horizontal ? 0.58 : 0.42;
+    ud.edgeLine.material.needsUpdate = true;
+  }
+}
+
+/** 타설 폴리곤(차수) 안 부재만 단조 — 나머지는 부재·강도 원색 */
+function applyPouredAreaMutedMembers(pours) {
+  if (!modelGroup) return 0;
+  const polys = getPourPolygonsFromPours(pours);
+  let muted = 0;
+  modelGroup.children.forEach(child => {
+    if (!child.isMesh || !child.userData.isMember) return;
+    if (!polys.length || !memberIntersectsPourArea(child, polys)) {
+      restoreMemberMeshStyle(child);
+      return;
+    }
+    if (isHorizontalMember3D(child)) {
+      const ratio = horizontalPourOverlapRatio(child, polys);
+      restoreMemberMeshStyle(child);
+      if (ratio >= 0.92) {
+        applyPouredMutedMemberStyle(child);
+        muted++;
+      } else if (child.userData.edgeLine?.material) {
+        child.userData.edgeLine.material.opacity = (child.userData.edgeOpacity ?? 0.30) * 0.28;
+        child.userData.edgeLine.material.needsUpdate = true;
+      }
+      return;
+    }
+    applyPouredMutedMemberStyle(child);
+    muted++;
+  });
+  return muted;
 }
 
 function dimMemberMeshes(factor = 0.28) {
@@ -3028,6 +3887,9 @@ function init3D() {
   scene3d.add(modelGroup);
   scene3d.add(intersectGroup);
 
+  initView3dControls();
+  updateView3dLegendMode();
+
   animate3d();
 }
 
@@ -3081,18 +3943,8 @@ function addMemberMesh3D(obj) {
 
   const part = normalizePartTypeClient(obj.part_type);
   const style = partStyle3D(part);
-  const bodyCol = memberBodyColor3D(part, obj.strength, obj.color);
-  const isTransparent = style.opacity < 0.99;
-  const mat = new THREE.MeshPhongMaterial({
-    color: bodyCol,
-    transparent: isTransparent,
-    opacity: style.opacity,
-    side: THREE.DoubleSide,
-    depthWrite: style.depthWrite !== false,
-    depthTest: true,
-    shininess: 30,
-    flatShading: false,
-  });
+  const bodyCol = memberBodyColor3D(part, obj.strength);
+  const mat = createMemberMaterial3D(part, obj.strength);
 
   const mesh = new THREE.Mesh(geom, mat);
   mesh.renderOrder = style.order;
@@ -3108,7 +3960,7 @@ function addMemberMesh3D(obj) {
   };
 
   if (style.edge) {
-    const edgeCol = memberEdgeColor3D(part, obj.strength, obj.color);
+    const edgeCol = memberEdgeColor3D(part, obj.strength);
     const eOp = style.edgeOpacity ?? 0.55;
     const edgeMat = new THREE.LineBasicMaterial({
       color: edgeCol, transparent: eOp < 0.99, opacity: eOp, depthTest: true, depthWrite: false,
@@ -3161,54 +4013,124 @@ async function selectZoneAndShowMesh(zone) {
   STATE.editingActual = false;
   STATE.editTarget = { type: 'zone', id: zone?.id || null };
   selectedActualPourId = null;
-  highlightZone3D(zone);
-  if (zone && zone.has_intersection_mesh) {
-    try {
-      const res = await fetch(`/zones/${zone.id}/intersection-mesh`);
-      const data = await res.json();
-      if (data.mesh && data.mesh.length > 0) {
-        renderIntersectionMesh(data.mesh);
-      }
-    } catch(e) { console.warn('교집합 메시 로드 실패:', e); }
-  }
-  // 실제 타설 기록도 로드
   if (zone) {
     try {
       const res = await fetch(`/actual-pours/${zone.id}`);
-      if (res.ok) { actualPours = await res.json(); }
-      else { actualPours = []; }
-    } catch(e) { actualPours = []; }
-    actualPoursCache[zone.id] = actualPours;
+      if (res.ok) {
+        actualPours = await res.json();
+        actualPoursCache[zone.id] = actualPours;
+      } else {
+        actualPours = [];
+        actualPoursCache[zone.id] = [];
+      }
+    } catch (e) {
+      actualPours = [];
+      actualPoursCache[zone.id] = [];
+    }
     draw2D();
+  }
+  await refreshZone3DVisualization(zone);
+  if (zone && STATE.selectedZone && STATE.selectedZone.id === zone.id) {
+    renderZoneList();
   }
 }
 
-function highlightZone3D(zone) {
-  while (intersectGroup.children.length) intersectGroup.remove(intersectGroup.children[0]);
+async function refreshZone3DVisualization(zone) {
+  updateView3dLegendMode();
+  if (!zone) {
+    clearZone3DHighlight();
+    return;
+  }
+
+  if (view3dPouredMuted) {
+    clearOverlayMeshes3D();
+    modelGroup.children.forEach(child => {
+      if (child.isMesh && child.userData.isMember) restoreMemberMeshStyle(child);
+    });
+    addZoneWireframe3D(zone);
+    const pours = actualPoursCache[zone.id] || actualPours || [];
+    const mutedCount = applyPouredAreaMutedMembers(pours);
+    renderPouredIntersectionMeshes(pours);
+    renderPouredSlabOverlays(pours);
+    if (!getPourPolygonsFromPours(pours).length) {
+      showToast('타설차수 폴리라인이 없습니다 — 1차 타설 범위를 먼저 그리세요', 'error');
+    }
+    return;
+  }
+
+  highlightZone3D(zone, { dimBackground: true });
+  clearOverlayMeshes3D();
+
+  if (zone.has_intersection_mesh) {
+    try {
+      const res = await fetch(`/zones/${zone.id}/intersection-mesh`);
+      const data = await res.json();
+      if (data.mesh && data.mesh.length > 0) renderIntersectionMesh(data.mesh);
+    } catch (e) {
+      console.warn('교집합 메시 로드 실패:', e);
+    }
+  }
+}
+
+function addZoneWireframe3D(zone) {
+  intersectGroup.children.filter(c => c.userData?.isZoneWire).forEach(c => intersectGroup.remove(c));
   if (!zone || !zone.polygon || zone.polygon.length < 3) return;
 
   const bbox = previewData?.bbox;
   const zMin = bbox ? bbox.min.z : 0;
   const zMax = bbox ? bbox.max.z : 3000;
 
-  // 커터 범위를 와이어프레임으로만 표시 (솔리드 아님)
   const shape = new THREE.Shape();
   zone.polygon.forEach((pt, i) => {
     if (i === 0) shape.moveTo(pt.x, pt.y); else shape.lineTo(pt.x, pt.y);
   });
 
   const height = Math.abs(zMax - zMin) || 3000;
-  const extrudeSettings = { depth: height, bevelEnabled: false };
-  const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  const geom = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
   geom.translate(0, 0, zMin);
 
-  // 와이어프레임 엣지만 표시 (주황색 점선)
-  const edgeMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 1, transparent: true, opacity: 0.6 });
-  const edgeGeom = new THREE.EdgesGeometry(geom);
-  const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.55 });
+  const edgeLine = new THREE.LineSegments(new THREE.EdgesGeometry(geom), edgeMat);
+  edgeLine.userData = { isZoneWire: true };
   intersectGroup.add(edgeLine);
+}
 
-  // 구역 선택 시 배경 모델은 어둡게, 색상은 유지
+function renderPouredIntersectionMeshes(pours) {
+  let count = 0;
+  (pours || []).forEach(ap => {
+    const meshData = ap.intersection_mesh;
+    if (!meshData || !meshData.length) return;
+    meshData.forEach(obj => {
+      const part = normalizePartTypeClient(obj.part_type);
+      if (part === '수평' || obj.orientation === 'horizontal') return;
+      const material = createPouredMaterial3D(part, obj.strength);
+      const edgeCol = new THREE.Color(resolvePouredMutedColorHex3D(part, obj.strength)).multiplyScalar(0.65);
+      const edgeMaterial = new THREE.LineBasicMaterial({
+        color: edgeCol,
+        transparent: true,
+        opacity: 0.55,
+        depthTest: true,
+        depthWrite: false,
+      });
+      appendIntersectionObject3D(obj, material, edgeMaterial, {
+        isPouredMesh: true,
+        isIntersection: false,
+        pourId: ap.id,
+        pourLabel: ap.pour_label,
+      }, 12);
+      count++;
+    });
+  });
+  return count;
+}
+
+function highlightZone3D(zone, { dimBackground = true } = {}) {
+  modelGroup.children.forEach(child => {
+    if (child.isMesh && child.userData.isMember) restoreMemberMeshStyle(child);
+  });
+  addZoneWireframe3D(zone);
+  if (!dimBackground || !zone) return;
+
   modelGroup.children.forEach(child => {
     if (child.isMesh && child.userData.isMember) {
       const ud = child.userData;
@@ -3225,70 +4147,26 @@ function highlightZone3D(zone) {
 }
 
 function renderIntersectionMesh(meshData) {
-  // 기존 교집합 메시 제거 (와이어프레임 유지)
-  const toRemove = [];
-  intersectGroup.children.forEach(child => {
-    if (child.userData && child.userData.isIntersection) toRemove.push(child);
-  });
-  toRemove.forEach(c => intersectGroup.remove(c));
-
+  clearOverlayMeshes3D();
   if (!meshData || meshData.length === 0) return;
 
   meshData.forEach(obj => {
     const part = normalizePartTypeClient(obj.part_type);
     const style = partStyle3D(part);
-    const colHex = obj.color || `#${style.color.toString(16).padStart(6, '0')}`;
-    const bodyCol = memberBodyColor3D(part, obj.strength, colHex);
-    const bodyOpacity = style.opacity;
-    const isTransparent = bodyOpacity < 0.99;
-    const material = new THREE.MeshPhongMaterial({
-      color: bodyCol,
-      transparent: isTransparent,
-      opacity: bodyOpacity,
-      side: THREE.DoubleSide,
-      shininess: part === '수평' ? 28 : 90,
-      polygonOffset: part !== '수평',
-      polygonOffsetFactor: part !== '수평' ? -8 : 0,
-      polygonOffsetUnits: part !== '수평' ? -8 : 0,
-      depthTest: true,
-      depthWrite: style.depthWrite !== false,
-    });
+    const material = createMemberMaterial3D(part, obj.strength);
+    material.opacity = Math.min(1, (style.opacity ?? 0.7) + 0.12);
+    material.transparent = material.opacity < 0.99;
     const eOp = style.edgeOpacity ?? 0.55;
     const edgeMaterial = new THREE.LineBasicMaterial({
-      color: memberEdgeColor3D(part, obj.strength, colHex),
+      color: memberEdgeColor3D(part, obj.strength),
       transparent: eOp < 0.99,
       opacity: eOp,
       depthTest: true,
       depthWrite: false,
     });
-
-    const geom = new THREE.BufferGeometry();
-    const verts = new Float32Array(obj.vertices.flat());
-    geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-
-    const indices = [];
-    obj.faces.forEach(f => { indices.push(f[0], f[1], f[2]); });
-    geom.setIndex(indices);
-    geom.computeVertexNormals();
-
-    const mesh = new THREE.Mesh(geom, material);
-    mesh.renderOrder = (style.order ?? 1) + 8;
-    mesh.userData = {
-      isIntersection: true,
-      strength: obj.strength,
-      part_type: part,
-      baseOpacity: bodyOpacity,
-      depthWrite: style.depthWrite !== false,
-    };
-    intersectGroup.add(mesh);
-
-    const edgeLine = new THREE.LineSegments(new THREE.EdgesGeometry(geom), edgeMaterial);
-    edgeLine.renderOrder = (style.order ?? 1) + 9;
-    edgeLine.userData = { isIntersection: true, part_type: part };
-    intersectGroup.add(edgeLine);
+    appendIntersectionObject3D(obj, material, edgeMaterial, { isIntersection: true, isPouredMesh: false }, 8);
   });
 
-  // 원본 모델은 살짝만 어둡게 — 부위 색상 유지
   dimMemberMeshes(0.32);
 }
 
@@ -3436,7 +4314,7 @@ async function runCalculation(zoneId) {
         const r = s.result;
         dirtyZoneOutlines.delete(zoneId);
         updateMobileZoneActions();
-        showToast(`체적: ${r.volume.toFixed(2)} m³ (수평 ${(r.volume_horizontal||0).toFixed(1)} / 수직 ${(r.volume_vertical||0).toFixed(1)}) → ${Math.ceil(r.volume/6)}대`, 'success');
+        showToast(`체적: ${r.volume.toFixed(2)} m³ (수평 ${(r.volume_horizontal||0).toFixed(1)} / 수직 ${(r.volume_vertical||0).toFixed(1)}) → ${trucksLabelFromVol(r.volume)}`, 'success');
         // 교집합 메시가 있으면 3D 뷰어에 렌더링
         if (r.intersection_mesh && r.intersection_mesh.length > 0) {
           renderIntersectionMesh(r.intersection_mesh);
